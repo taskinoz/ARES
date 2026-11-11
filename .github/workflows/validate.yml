@@ -1,0 +1,21 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install validation dependencies
+        run: pip install pyyaml jsonschema
+      - name: Validate registry
+        run: python scripts/validate-registry.py
+      - name: Run tests
+        run: python -m unittest discover -s tests -p "test_*.py"

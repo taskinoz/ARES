@@ -1,0 +1,37 @@
+id: ps4-northstar
+name: PS4 Northstar
+description: Northstar runtime experimentation for Titanfall 2 on PS4/shadPS4.
+repository: https://github.com/taskinoz/PS4-Northstar
+targets: [r2]
+categories: [runtime, modding]
+capabilities: [runtime-porting, harness-testing]
+formats:
+  inputs: [mod, script]
+  outputs: [runtime, test-report]
+integration:
+  type: external-repository
+  harness: partially-verified
+  agent_instructions: verified
+  setup: upstream
+upstream:
+  default_branch: main
+  commit: 62092d684089bbbe5cb79a781d2e4130f7e4e89d
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: .claude/skills/build-and-test
+  harness_path: mods/AI.Harness
+  license: null
+verification:
+  status: partial
+  last_checked: "2026-11-11"
+  notes:
+    - AGENTS.md and README document runtime and test expectations.
+inspection:
+  checked_at: "2026-11-11T14:25:30Z"
+  method: github-api-readme-agents-commit
+  evidence:
+    - commit:62092d684089bbbe5cb79a781d2e4130f7e4e89d
+    - README.md
+    - AGENTS.md
+documentation:
+  - https://github.com/taskinoz/PS4-Northstar

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ARES Harness Result",
+  "type": "object",
+  "required": ["schema_version", "tool", "target", "operation", "status", "verification", "duration_ms", "artifacts", "checks", "errors"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "tool": { "type": "string" },
+    "target": { "type": "string", "enum": ["r1", "tfo", "r2", "r5"] },
+    "operation": { "type": "string" },
+    "status": { "type": "string", "enum": ["success", "failure", "partial"] },
+    "verification": { "type": "string", "enum": ["static", "tool", "integration", "runtime"] },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "type"],
+        "properties": {
+          "path": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "passed"],
+        "properties": {
+          "name": { "type": "string" },
+          "passed": { "type": "boolean" }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

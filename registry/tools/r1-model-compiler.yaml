@@ -1,0 +1,38 @@
+id: r1-model-compiler
+name: R1 Model Compiler
+description: Experimental native model compiler for Titanfall 1 and Titanfall Online (MDL v52).
+repository: https://github.com/taskinoz/r1-model-compiler
+targets: [r1, tfo]
+categories: [models, compilation]
+capabilities: [model-compilation]
+formats:
+  inputs: [qc, smd, dmx]
+  outputs: [mdl, vvd, dx11.vtx, phy, vvc]
+integration:
+  type: external-repository
+  harness: partially-verified
+  agent_instructions: verified
+  setup: upstream
+upstream:
+  default_branch: main
+  commit: 659f17b669c951417849834963de672d9d23451b
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: tools/ingame_test52.py
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-11"
+  notes:
+    - MDL v52 scope documented upstream.
+    - Runtime validation depends on external environments.
+inspection:
+  checked_at: "2026-11-11T14:25:30Z"
+  method: github-api-readme-agents-commit
+  evidence:
+    - commit:659f17b669c951417849834963de672d9d23451b
+    - README.md
+    - AGENTS.md
+documentation:
+  - https://github.com/taskinoz/r1-model-compiler

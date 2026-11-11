@@ -1,0 +1,36 @@
+id: apex-to-titanfall-2
+name: Apex to Titanfall 2
+description: Apex-to-R2 map conversion workflows and validation references.
+repository: https://github.com/taskinoz/apex-to-titanfall-2
+targets: [r2, r5]
+categories: [maps, conversion]
+capabilities: [asset-conversion, map-validation]
+formats:
+  inputs: [bsp, source-assets]
+  outputs: [northstar-mod]
+integration:
+  type: external-repository
+  harness: unverified
+  agent_instructions: unverified
+  setup: upstream
+upstream:
+  default_branch: main
+  commit: ab6873e8ca15d655fd26da0643a5e589b1414635
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: tools/
+  license: null
+verification:
+  status: pending
+  last_checked: "2026-11-11"
+  notes:
+    - README confirms conversion scope; deeper harness inventory pending.
+inspection:
+  checked_at: "2026-11-11T14:25:30Z"
+  method: github-api-readme-commit
+  evidence:
+    - commit:ab6873e8ca15d655fd26da0643a5e589b1414635
+    - README.md
+documentation:
+  - https://github.com/taskinoz/apex-to-titanfall-2

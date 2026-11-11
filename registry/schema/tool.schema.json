@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ARES Tool Registry Entry",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "description",
+    "repository",
+    "targets",
+    "categories",
+    "capabilities",
+    "formats",
+    "integration",
+    "upstream",
+    "verification",
+    "inspection",
+    "documentation"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "repository": { "type": "string", "format": "uri" },
+    "targets": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["r1", "tfo", "r2", "r5"] },
+      "minItems": 1
+    },
+    "categories": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "formats": {
+      "type": "object",
+      "required": ["inputs", "outputs"],
+      "properties": {
+        "inputs": { "type": "array", "items": { "type": "string" } },
+        "outputs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "integration": {
+      "type": "object",
+      "required": ["type", "harness", "agent_instructions", "setup"],
+      "properties": {
+        "type": { "type": "string", "enum": ["external-repository", "local-adapter"] },
+        "harness": { "type": "string", "enum": ["verified", "partially-verified", "unverified"] },
+        "agent_instructions": { "type": "string", "enum": ["verified", "partially-verified", "unverified"] },
+        "setup": { "type": "string", "enum": ["upstream", "ares", "mixed"] }
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "required": ["default_branch", "commit", "readme_path", "agents_path", "skills_path", "harness_path", "license"],
+      "properties": {
+        "default_branch": { "type": "string" },
+        "commit": { "type": "string" },
+        "readme_path": { "type": ["string", "null"] },
+        "agents_path": { "type": ["string", "null"] },
+        "skills_path": { "type": ["string", "null"] },
+        "harness_path": { "type": ["string", "null"] },
+        "license": { "type": ["string", "null"] }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["status", "last_checked", "notes"],
+      "properties": {
+        "status": { "type": "string", "enum": ["pending", "partial", "verified"] },
+        "last_checked": { "type": ["string", "null"] },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "inspection": {
+      "type": "object",
+      "required": ["checked_at", "method", "evidence"],
+      "properties": {
+        "checked_at": { "type": "string" },
+        "method": { "type": "string" },
+        "evidence": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "documentation": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" },
+      "minItems": 1
+    }
+  }
+}
