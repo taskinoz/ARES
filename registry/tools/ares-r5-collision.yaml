@@ -1,0 +1,41 @@
+id: ares-r5-collision
+name: ARES R5 collision tools
+description: "Read, check and compare early-Apex (S0-S3) PHY physics and BVH trace collision, all BVH leaf types."
+repository: https://github.com/taskinoz/ARES
+targets: [r5]
+categories: [models, collision, validation]
+capabilities: [physics-inspection, collision-inspection, collision-comparison]
+formats:
+  inputs: [rmdl, phy]
+  outputs: [json, text]
+integration:
+  type: local-adapter
+  harness: verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: 9356555d02cb49b14c264d7f1a5e7cbe05c4cd63
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/validate-r5-collision
+  harness_path: null
+  license: MIT
+verification:
+  status: verified
+  last_checked: "2026-11-12"
+  notes:
+    - "All 938 retail S0-S3 PHY files and all 3,865 BVH entries decode upstream; comparisons used for the corpus round trips."
+    - ARES tests cover leaf decoding (synthetic blocks) and the compiled fixtures.
+    - Vendored from taskinoz/r5-model-compiler at 9356555d02cb; see ares/SOURCES.json.
+inspection:
+  checked_at: "2026-11-12T12:12:50Z"
+  method: local-tests-and-runs
+  evidence:
+    - ares/r5/phy54.py
+    - ares/r5/bvh54.py
+    - ares/r5/compare_phy54.py
+    - ares/r5/compare_bvh54.py
+    - tests/test_tools.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/.agents/skills/validate-r5-collision/SKILL.md

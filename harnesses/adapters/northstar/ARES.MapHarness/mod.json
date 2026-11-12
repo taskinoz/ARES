@@ -1,0 +1,39 @@
+{
+  "Name": "ARES.MapHarness",
+  "Version": "0.1.0",
+  "LoadPriority": 100,
+  "Description": "ARES opt-in local map harness: loopback HTTP control, cameras, player placement, traces and captures. Inert unless ares_harness_enabled 1, a token and -allowlocalhttp are set.",
+  "ConVars": [
+    {
+      "Name": "ares_harness_enabled",
+      "DefaultValue": "0"
+    },
+    {
+      "Name": "ares_harness_port",
+      "DefaultValue": "39131"
+    },
+    {
+      "Name": "ares_harness_generation",
+      "DefaultValue": ""
+    },
+    {
+      "Name": "ares_harness_token",
+      "DefaultValue": ""
+    }
+  ],
+  "Scripts": [
+    {
+      "Path": "_ares_map_harness.nut",
+      "RunOn": "UI || (CLIENT && MP) || (SERVER && MP)",
+      "UICallback": {
+        "After": "AresMapHarness_Init"
+      },
+      "ClientCallback": {
+        "After": "AresMapHarness_Init"
+      },
+      "ServerCallback": {
+        "After": "AresMapHarness_Init"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+id: ares-bsp-tools
+name: ARES Respawn format tools
+description: "Standard-library readers and validators for Respawn BSP v29/v37/v47 (lumps, records, triangle collision, portals, game lump, lighting), TF2/Apex RPak readers, VPK and STBSP writers, and swept-collision oracles."
+repository: https://github.com/taskinoz/ARES
+targets: [r1, tfo, r2, r5]
+categories: [maps, inspection]
+capabilities: [map-inspection, map-validation, collision-analysis, packaging]
+formats:
+  inputs: [bsp, bsp_lump, rpak, vpk]
+  outputs: [json, obj, map, vpk, stbsp]
+integration:
+  type: local-adapter
+  harness: unverified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: respawn-format-research
+  commit: 53fd03029f3e8f0b0b421cedaa6105c1506d9daf
+  readme_path: tools/README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/inspect-bsp
+  harness_path: null
+  license: GPL-2.0-or-later
+verification:
+  status: verified
+  last_checked: "2026-11-12"
+  notes:
+    - "118 unit tests pass on synthetic BSPs in ARES; CLIs checked on a compiled TF2 map on 2026-11-12."
+inspection:
+  checked_at: "2026-11-12T12:30:00Z"
+  method: local-tests-and-runs
+  evidence:
+    - tools/README.md
+    - tools/test_inspect_bsp.py
+    - tools/test_validate_records.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/tools/README.md

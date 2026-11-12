@@ -1,0 +1,38 @@
+id: r5-model-compiler
+name: R5 Model Compiler
+description: Experimental native model compiler for early Apex Legends (Seasons 0-3, RMDL v54) with PHY physics and BVH collision.
+repository: https://github.com/taskinoz/r5-model-compiler
+targets: [r5]
+categories: [models, compilation]
+capabilities: [model-compilation, model-decompilation, collision-compilation]
+formats:
+  inputs: [qc, smd, dmx]
+  outputs: [rmdl, vg, vvd, dx11.vtx, phy, rrig, rseq]
+integration:
+  type: external-repository
+  harness: verified
+  agent_instructions: verified
+  setup: upstream
+upstream:
+  default_branch: main
+  commit: 9356555d02cb49b14c264d7f1a5e7cbe05c4cd63
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: tools/ingame54.py
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-12"
+  notes:
+    - Private repository; access is required to build it.
+    - "Corpus: 1,318 of 1,789 retail S0-S3 models round-trip in full mode; collision for 1,123 of 1,128 BVH models."
+    - "R5R v2.6.52 runtime evidence: traces, physics drops and ragdoll switches (see its VALIDATION.md)."
+inspection:
+  checked_at: "2026-11-12T12:12:50Z"
+  method: local-checkout-commit
+  evidence:
+    - commit:9356555d02cb49b14c264d7f1a5e7cbe05c4cd63
+    - VALIDATION.md
+documentation:
+  - https://github.com/taskinoz/r5-model-compiler

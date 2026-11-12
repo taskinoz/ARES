@@ -1,0 +1,97 @@
+{
+  "common/geometry.py": {
+    "commit": "8353f390378e8d5d2da01da355c8fe82e289f820",
+    "path": "tools/decompile53.py (matrix_angles, quat_matrix, unpack_q64)",
+    "repository": "taskinoz/r2-model-compiler"
+  },
+  "harness/northstar.py": {
+    "commit": "8353f390378e8d5d2da01da355c8fe82e289f820",
+    "path": "tools/ingame_test.py",
+    "repository": "taskinoz/r2-model-compiler",
+    "source_sha256": "8f226c0abf3dd5a722aaaf3b3a6b8c9773be5a448ca3ded365320962f885d972"
+  },
+  "harness/r1delta.py": {
+    "commit": "9b3db132fe7f9d0e47b3756e6b367fb99c88d6f1",
+    "path": "tools/ingame_test_r1delta.py",
+    "repository": "taskinoz/r1-model-compiler",
+    "source_sha256": "51a4afa5f4e417598c9cc9ae3ac709dc65e6279fb2ec66a3cdf9e70490a208de"
+  },
+  "harness/r1delta_compare.py": {
+    "commit": "9b3db132fe7f9d0e47b3756e6b367fb99c88d6f1",
+    "path": "tools/r1delta_compare.py",
+    "repository": "taskinoz/r1-model-compiler",
+    "source_sha256": "d42b164f5590bd68bad15276f34d4755295a3a705e9543bb5fdfbf486122449c"
+  },
+  "harness/r1delta_mcp.py": {
+    "commit": "9b3db132fe7f9d0e47b3756e6b367fb99c88d6f1",
+    "path": "tools/r1delta_mcp.py",
+    "repository": "taskinoz/r1-model-compiler",
+    "source_sha256": "a9de8623ae788baea7eea18bc3eb921c0bcb108be3c07dd48a9c2cf7d617ad5d"
+  },
+  "harness/r5reloaded.py": {
+    "commit": "9356555d02cb49b14c264d7f1a5e7cbe05c4cd63",
+    "path": "tools/ingame54.py",
+    "repository": "taskinoz/r5-model-compiler",
+    "source_sha256": "6adcdeef30f3b0eb708335819926597ae02e8f0c0fdb5986fe06718f7c9b0c85"
+  },
+  "harness/tfo.py": {
+    "commit": "9b3db132fe7f9d0e47b3756e6b367fb99c88d6f1",
+    "path": "tools/ingame_test52.py",
+    "repository": "taskinoz/r1-model-compiler",
+    "source_sha256": "2d255083392ddc5866ab08757d5c6615c3bb9dc1deb254c0bd9d02c7dde7a876"
+  },
+  "r1/mdl52.py": {
+    "commit": "9b3db132fe7f9d0e47b3756e6b367fb99c88d6f1",
+    "path": "tools/mdl52.py",
+    "repository": "taskinoz/r1-model-compiler",
+    "source_sha256": "7443643bd59168bd6023f3094ca442889a153989e5085daed0d85b7a1271cdc2"
+  },
+  "r2/mdl53.py": {
+    "commit": "8353f390378e8d5d2da01da355c8fe82e289f820",
+    "path": "tools/mdl53.py",
+    "repository": "taskinoz/r2-model-compiler",
+    "source_sha256": "22806205c242d02b31f3280e9d3ca4fe620c5b2f56d7cde54abe35c251c32779"
+  },
+  "r5/bvh54.py": {
+    "commit": "9356555d02cb49b14c264d7f1a5e7cbe05c4cd63",
+    "path": "tools/bvh54.py",
+    "repository": "taskinoz/r5-model-compiler",
+    "source_sha256": "819009dbae6b4bd13d892d0b4dc44b079e917f7879e50f27052fdab9537d8def"
+  },
+  "r5/compare_bvh54.py": {
+    "commit": "9356555d02cb49b14c264d7f1a5e7cbe05c4cd63",
+    "path": "tools/compare_bvh54.py",
+    "repository": "taskinoz/r5-model-compiler",
+    "source_sha256": "b5fbf0411098bc666b28725b437e572ec628a3d727e203e5225bdefa2cf55aa7"
+  },
+  "r5/compare_phy54.py": {
+    "commit": "9356555d02cb49b14c264d7f1a5e7cbe05c4cd63",
+    "path": "tools/compare_phy54.py",
+    "repository": "taskinoz/r5-model-compiler",
+    "source_sha256": "3cfbb654838bb5eda1d45f13b4978cb8d31f82e376e0ab45a38468c6fd08afe5"
+  },
+  "r5/mdl54.py": {
+    "commit": "9356555d02cb49b14c264d7f1a5e7cbe05c4cd63",
+    "path": "tools/mdl54.py",
+    "repository": "taskinoz/r5-model-compiler",
+    "source_sha256": "294ecb9eff3f705a0e35c24fa8d83b77575abebcec3353c3f2506571bd188f69"
+  },
+  "r5/phy54.py": {
+    "commit": "9356555d02cb49b14c264d7f1a5e7cbe05c4cd63",
+    "path": "tools/phy54.py",
+    "repository": "taskinoz/r5-model-compiler",
+    "source_sha256": "90dd10e566972612d92eca9b61034b0cd03343182e43b8a6544970dd7b6aeb78"
+  },
+  "r5/rpak.py": {
+    "commit": "9356555d02cb49b14c264d7f1a5e7cbe05c4cd63",
+    "path": "tools/pack54.py",
+    "repository": "taskinoz/r5-model-compiler",
+    "source_sha256": "6eee3baf6c958807385923769a8e715608b73d27520b7458ed4f3b00b8341f98"
+  },
+  "source/ivp_phy.py": {
+    "commit": "8353f390378e8d5d2da01da355c8fe82e289f820",
+    "path": "tools/phy.py",
+    "repository": "taskinoz/r2-model-compiler",
+    "source_sha256": "f249eb8418446705872c437cfbbc2c902d1151170e003a16352aaa28c22ce7b0"
+  }
+}

@@ -1,0 +1,39 @@
+id: ares-model-harness-r1delta
+name: ARES R1Delta harness
+description: "Original Titanfall via R1Delta: addon staging and telemetry, an MCP client for unattended control, and retail-versus-rebuilt comparison."
+repository: https://github.com/taskinoz/ARES
+targets: [r1]
+categories: [testing, runtime]
+capabilities: [runtime-testing, retail-comparison]
+formats:
+  inputs: [mdl, json]
+  outputs: [json, tga]
+integration:
+  type: local-adapter
+  harness: partially-verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: 9b3db132fe7f9d0e47b3756e6b367fb99c88d6f1
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/test-titanfall1
+  harness_path: ares/harness/r1delta.py
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-12"
+  notes:
+    - "Used for in-game validation upstream; ARES runs the upstream staging, MCP-protocol and comparison tests, not a game launch."
+    - Vendored from taskinoz/r1-model-compiler at 9b3db132fe7f; see ares/SOURCES.json.
+inspection:
+  checked_at: "2026-11-12T12:12:50Z"
+  method: local-tests-and-runs
+  evidence:
+    - ares/harness/r1delta.py
+    - ares/harness/r1delta_mcp.py
+    - ares/harness/r1delta_compare.py
+    - tests/test_tools.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/.agents/skills/test-titanfall1/SKILL.md

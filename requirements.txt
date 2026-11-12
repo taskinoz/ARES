@@ -1,0 +1,5 @@
+# Registry validation and the result-contract tests.
+pyyaml>=6
+jsonschema>=4
+# Optional: harness view captures (tfo, r1delta and northstar harnesses import it lazily).
+Pillow>=10

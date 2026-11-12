@@ -1,0 +1,211 @@
+"""Ported from taskinoz/r1-model-compiler tests/test_ingame52.py."""
+from pathlib import Path
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT))
+from ares.harness import tfo as harness
+
+
+class HarnessTests(unittest.TestCase):
+    def setUp(self):
+        temp=tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.work=Path(temp.name)
+        self.game=self.work/'game'
+        (self.game/'Bin').mkdir(parents=True)
+        (self.game/'Bin/TFO.exe').write_bytes(b'not executable: preparation tests only')
+        self.base=self.game/'Mods/TFORevive.Core/mod/scripts/vscripts/_mapspawn.nut'
+        self.base.parent.mkdir(parents=True)
+        self.original=b'// synthetic game script fixture\n'
+        self.base.write_bytes(self.original)
+        self.run='a'*32
+
+    def compiled_model(self):
+        # the r1-model-compiler static-prop example, compiled (tests/fixtures/models/r1)
+        source=ROOT/'tests/fixtures/models/r1/box.mdl'
+        output=self.work/'box.mdl'
+        for suffix in ('.mdl','.vvd','.dx11.vtx','.phy'):
+            if source.with_suffix(suffix).exists(): output.with_suffix(suffix).write_bytes(source.with_suffix(suffix).read_bytes())
+        return output
+
+    def events(self):
+        return '\n'.join(f'[R1C:{self.run}] '+message for message in [
+            'PRECACHE models/test/box.mdl','INIT','SPAWN 0 model=models/test/box.mdl origin=<0,0,0>',
+            'ANIM 0 sequence=idle index=0','POSE 0 sample=4 origin=<0,0,0>','DONE'])
+
+    def test_companion_staging_and_owned_cleanup(self):
+        model=self.compiled_model()
+        unrelated=self.game/'Mods/UserMod'
+        unrelated.mkdir()
+        (unrelated/'keep.txt').write_text('keep')
+        mod,evidence,_=harness.prepare(self.game,[(model,'models/test/box.mdl')],self.run)
+        for suffix in ('.mdl','.vvd','.dx11.vtx','.phy'):
+            self.assertEqual((mod/'mod/models/test/box.mdl').with_suffix(suffix).read_bytes(),model.with_suffix(suffix).read_bytes())
+        self.assertEqual(len(evidence[0]['files']),4)
+        self.assertEqual(self.base.read_bytes(),self.original)
+        harness.safe_cleanup(mod,self.game/'Mods',self.run)
+        self.assertFalse(mod.exists())
+        self.assertTrue((unrelated/'keep.txt').exists())
+        self.assertEqual(self.base.read_bytes(),self.original)
+
+    def test_checksum_failure_before_game_mutation(self):
+        model=self.compiled_model()
+        model.with_suffix('.vvd').write_bytes(b'bad')
+        with self.assertRaises(ValueError):
+            harness.prepare(self.game,[(model,'models/test/box.mdl')],self.run)
+        self.assertEqual([p.name for p in (self.game/'Mods').iterdir()],['TFORevive.Core'])
+
+    def test_cleanup_rejects_foreign_owner(self):
+        mod=self.game/'Mods/Foreign'
+        mod.mkdir()
+        (mod/harness.OWNER).write_text(json.dumps({'run_id':'b'*32}))
+        with self.assertRaisesRegex(ValueError,'ownership'):
+            harness.safe_cleanup(mod,self.game/'Mods',self.run)
+        self.assertTrue(mod.exists())
+
+    def test_cleanup_rejects_outside_mods(self):
+        with self.assertRaisesRegex(ValueError,'outside'):
+            harness.safe_cleanup(self.work,self.game/'Mods',self.run)
+
+    def test_traversal_and_script_injection_rejected(self):
+        for path in ('../models/a.mdl','models/../../a.mdl','C:/models/a.mdl','/models/a.mdl','models/a.mdl;quit','models/a.txt'):
+            with self.subTest(path=path),self.assertRaises(ValueError): harness.game_path(path)
+        with self.assertRaises(ValueError): harness.script(self.run,['models/a.mdl'],'idle";quit','',False)
+
+    def test_server_screenshot_uses_native_global_command(self):
+        for dedicated in (False, True):
+            source=harness.script(self.run,['models/test/box.mdl'],'idle','',False,dedicated)
+            self.assertIn('if ( hasPlayer ) ClientCommand( player, "screenshot" )',source)
+            self.assertNotIn('player.ClientCommand(',source)
+
+    def test_offline_client_gets_pilot_fallback_and_view_event(self):
+        source=harness.script(self.run,['models/test/box.mdl'],'idle','',False)
+        self.assertIn('::R1C_OriginalPilotSetFile <- GetPlayerPilotSetFile',source)
+        self.assertIn('file = "pilot_male_fastest"',source)
+        self.assertIn('player.GetParent() != null',source)
+        self.assertLess(source.index('R1C_Log( "VIEW 0" )'),source.index('R1C_Log( "DONE" )'))
+
+    def test_only_startup_driver_crashes_are_retried(self):
+        self.assertTrue(harness.should_retry(-1073741571,'',self.run))  # 0xC00000FD as a signed code
+        self.assertTrue(harness.should_retry(0xC00000FD,'',self.run))
+        self.assertFalse(harness.should_retry(0xC00000FD,f'[R1C:{self.run}] INIT',self.run))
+        self.assertFalse(harness.should_retry(0xC0000409,'',self.run))
+        self.assertTrue(harness.should_retry(0xC0000005,'',self.run))
+        self.assertFalse(harness.should_retry(0xC0000005,f'[R1C:{self.run}] PRECACHE models/a.mdl',self.run))
+        self.assertFalse(harness.should_retry(0,'',self.run))
+        self.assertFalse(harness.should_retry(None,'',self.run))
+
+    def test_complete_telemetry_passes(self):
+        result=harness.evaluate(self.events(),self.run,1,paths=['models/test/box.mdl'])
+        self.assertTrue(result['passed'],result)
+
+    def test_other_run_is_not_evidence(self):
+        self.assertFalse(harness.evaluate(self.events(),'b'*32,1)['passed'])
+
+    def test_partial_or_wrong_model_cannot_pass(self):
+        for text in (self.events().replace('DONE',''),self.events().replace('POSE 0 sample=4','POSE 0 sample=3'),
+                     self.events().replace('SPAWN 0 model=models/test/box.mdl','SPAWN 0 model=models/error.mdl')):
+            with self.subTest(text=text):
+                self.assertFalse(harness.evaluate(text,self.run,1,paths=['models/test/box.mdl'])['passed'])
+
+    def test_runtime_error_after_done_fails(self):
+        self.assertFalse(harness.evaluate(self.events()+'\nSCRIPT ERROR: unknown function',self.run,1)['passed'])
+
+    def test_missing_attachment_or_physics_motion_fails(self):
+        self.assertFalse(harness.evaluate(self.events(),self.run,1,attachment='probe')['passed'])
+        self.assertFalse(harness.evaluate(self.events(),self.run,1,physics=True)['passed'])
+
+    def test_noauth_client_retains_required_launcher_argument(self):
+        command=harness.launch_command(self.game,'mp_nexus')
+        self.assertIn('-noauth',command)
+        self.assertEqual(command[command.index('--authToken')+1],'r1c-local-noauth')
+        self.assertEqual(command[command.index('+sv_lan')+1],'1')
+
+    def test_dedicated_routes_to_server_without_client_token(self):
+        command=harness.launch_command(self.game,'mp_nexus',dedicated=True)
+        self.assertEqual(Path(command[0]).name,'tfods.exe')
+        self.assertIn('-dedicated',command)
+        self.assertNotIn('--authToken',command)
+        self.assertNotIn('-windowed',command)
+
+    def test_required_trace_rejects_miss(self):
+        text=self.events()+f'\n[R1C:{self.run}] TRACE 0 hit=false z=64'
+        self.assertFalse(harness.evaluate(text,self.run,1,required_traces=[0])['passed'])
+        self.assertTrue(harness.evaluate(text.replace('hit=false','hit=true'),self.run,1,required_traces=[0])['passed'])
+
+    def test_required_attachment_motion_rejects_stationary_samples(self):
+        lines=[f'[R1C:{self.run}] ATTACH 0 sample={i} pos=(vector : (1.000, 2.000, 3.000)) ang=(vector : (0,0,0))' for i in range(5)]
+        text=self.events()+'\n'+'\n'.join(lines)
+        self.assertFalse(harness.evaluate(text,self.run,1,attachment='probe',min_attachment_displacement=1)['passed'])
+        moved=text.replace('sample=4 pos=(vector : (1.000','sample=4 pos=(vector : (3.000')
+        result=harness.evaluate(moved,self.run,1,attachment='probe',min_attachment_displacement=1)
+        self.assertTrue(result['passed'],result)
+        self.assertEqual(result['attachment_displacements']['0'],2.)
+
+    def test_log_rotation_and_append_exclude_stale_evidence(self):
+        log=self.work/'runtime.log'
+        old=b'old run: SCRIPT ERROR\n'
+        log.write_bytes(old)
+        self.assertEqual(harness.read_runtime_log(log,len(old),old[:256]),'')
+        log.write_bytes(old+b'new appended event\n')
+        self.assertEqual(harness.read_runtime_log(log,len(old),old[:256]),'new appended event\n')
+        new=b'new truncated startup '+b'x'*100
+        log.write_bytes(new)
+        self.assertEqual(harness.read_runtime_log(log,len(old),old[:256]),new.decode())
+
+    def test_only_owned_crash_handlers_are_closed(self):
+        exe={n:f'd:/tfo/bin/{n}' for n in harness.CRASH_HANDLERS}
+        entries=[
+            (20,10,'messagebox-win.exe','D:/TFO/Bin/messagebox-win.exe'),   # dialog of the crashed launch
+            (21,10,'crashpad_handler.exe','D:/TFO/Bin/crashpad_handler.exe'),
+            (22,21,'messagebox-win.exe','D:/TFO/Bin/messagebox-win.exe'),   # launched by that handler
+            (30,99,'messagebox-win.exe','D:/TFO/Bin/messagebox-win.exe'),   # another launch's dialog
+            (31,10,'messagebox-win.exe','E:/Other/Bin/messagebox-win.exe'), # another install
+            (32,10,'notepad.exe',None),
+        ]
+        self.assertEqual(harness.owned_crash_handlers(entries,10,exe),
+                         {20:'messagebox-win.exe',21:'crashpad_handler.exe',22:'messagebox-win.exe'})
+
+    def test_mount_must_match_internal_model_name(self):
+        model=self.compiled_model()
+        self.assertEqual(harness.internal_name(model),'r1c_examples/box.mdl')
+        self.assertEqual(harness.parse_mount(f'{model}=models/R1C_Examples/box.mdl')[1],'models/R1C_Examples/box.mdl')
+        with self.assertRaisesRegex(ValueError,r'\$modelname path models/r1c_examples/box.mdl'):
+            harness.parse_mount(f'{model}=models/test/box.mdl')
+
+    def test_mount_only_models_are_staged_but_not_spawned(self):
+        box=self.compiled_model()
+        other=self.work/'other'
+        other.mkdir()
+        for suffix in ('.mdl','.vvd','.dx11.vtx','.phy'):
+            if box.with_suffix(suffix).exists():
+                (other/('box'+suffix)).write_bytes(box.with_suffix(suffix).read_bytes())
+        # a mount-only model (for example an included animation model) is copied into
+        # the mod with its companions but left out of the spawned list
+        extra=[harness.parse_mount(f'{other/"box.mdl"}=models/r1c_examples/box.mdl')]
+        mod,evidence,_=harness.prepare(self.game,extra,self.run,'',extra=extra)
+        try:
+            source=(mod/'mod/scripts/vscripts/r1c_model_test.nut').read_text()
+            self.assertTrue((mod/'mod/models/r1c_examples/box.mdl').exists())
+            self.assertIn('R1C_PATHS <- []',source)
+        finally:
+            harness.safe_cleanup(mod,self.game/'Mods',self.run)
+
+    def test_prepare_only_is_explicitly_not_runtime_pass(self):
+        model=self.compiled_model()
+        report=self.work/'report.json'
+        result=harness.main(['--game',str(self.game),'--prepare-only','--report',str(report),f'{model}=models/r1c_examples/box.mdl'])
+        self.assertEqual(result,0)
+        data=json.loads(report.read_text())
+        self.assertFalse(data['passed'])
+        self.assertEqual(data['status'],'prepared')
+        self.assertTrue(data['mod_removed'])
+
+
+if __name__=='__main__': unittest.main()

@@ -1,5 +1,8 @@
 # ARES — Agent Research & Evaluation System
 
+[![AI: AI-built agent tooling](.github/badges/ai-generated.svg)](AI.md)
+[![Skill available](.github/badges/skill-available.svg)](.agents/skills/)
+
 ARES is an agent-first, documentation-driven repository for discovering and orchestrating tooling across Respawn Source-engine game ecosystems.
 
 ## Supported targets
@@ -22,16 +25,65 @@ ARES is an agent-first, documentation-driven repository for discovering and orch
 
 - `games/`: target-specific instructions and constraints.
 - `registry/`: machine-readable tool catalogue and schema.
-- `.agents/skills/`: reusable, task-scoped skill documents.
+- `.agents/skills/`: reusable, task-scoped skill documents (mirrored into
+  `.claude/skills/` by `scripts/sync-agent-skills.py`).
+- `ares/`: standalone model tools and in-game model harnesses (Python package).
+- `tools/`, `harnesses/adapters/`: map tools and map harnesses (see below).
 - `docs/`: architecture, conventions, compatibility, workflows.
-- `harnesses/`: shared contracts and future adapter surface.
-- `scripts/`: validation and discovery utilities.
-- `tests/`: repository script tests.
+- `harnesses/`: the result contract, map adapters and their guides.
+- `scripts/`: validation, discovery and upstream-refresh utilities.
+- `tests/`: tests for the scripts and the `ares` package, with small compiled fixtures.
+
+## Model tools and harnesses (`ares/`)
+
+Standard library only, Python 3.10+. Run from the repository root; `python -m ares`
+lists every tool and `python -m <module> --help` documents it.
+
+| Target | Read and check | In-game harness |
+| --- | --- | --- |
+| R1 / R1Delta | `ares.r1.mdl52`, `ares.source.ivp_phy` | `ares.harness.r1delta` (+ `r1delta_mcp`, `r1delta_compare`) |
+| TFO | `ares.r1.mdl52`, `ares.r2.mdl53`, `ares.source.ivp_phy` | `ares.harness.tfo` |
+| R2 / Northstar | `ares.r2.mdl53`, `ares.source.ivp_phy` | `ares.harness.northstar` |
+| R5 / R5Reloaded | `ares.r5.mdl54`, `ares.r5.phy54`, `ares.r5.bvh54`, `ares.r5.compare_phy54`, `ares.r5.compare_bvh54` | `ares.r5.rpak` then `ares.harness.r5reloaded` |
+
+`python -m ares.result <kind> report.json` converts a model-harness report into the
+ARES result contract (`harnesses/contracts/result.schema.json`). The tools are
+vendored from taskinoz/r1-, r2- and r5-model-compiler; `ares/SOURCES.json` records
+each file's origin and commit, and `scripts/vendor-upstream.py` refreshes them.
+Skills: `inspect-respawn-model`, `validate-r5-collision`, `test-r5reloaded`,
+`test-northstar`, `test-titanfall1`, `compile-model`, `run-harness`.
+
+## Map tools and harnesses
+
+Check a map statically first, then test it in the game.
+
+- [`tools/`](tools/README.md): standard-library readers and validators for
+  Respawn BSP v29/v37/v47 (`inspect_bsp`, `validate_records`, `tricoll`,
+  `portals`, `game_lump`, `lighting`, `audit_tf2_budget`), plus RPak readers,
+  VPK/STBSP writers and swept-collision oracles. Skill: `inspect-bsp`.
+- [`harnesses/adapters/`](harnesses/README.md): runtime harnesses for maps and mods.
+
+  | Target | Harness | Guide |
+  | --- | --- | --- |
+  | R2 / Northstar | `northstar_harness.py` (run in game from ARES, 12 Nov 2026) | [northstar.md](harnesses/docs/northstar.md) |
+  | TFO | `tfo_harness.py` | [tfo.md](harnesses/docs/tfo.md) |
+  | R1 / R1Delta | `r1_harness.py` | [r1delta.md](harnesses/docs/r1delta.md) |
+  | R5 / R5Reloaded | `r5_harness.py`, `r5_harnessctl.py`, `r5_harness_smoke.py` | [r5reloaded.md](harnesses/docs/r5reloaded.md) |
+
+  Skills: `run-harness`, `test-northstar-mod`, `build-map`.
+
+```powershell
+python tools/inspect_bsp.py BUILD/mp_name.bsp
+python harnesses/adapters/northstar_harness.py --game C:/Games/Titanfall2 `
+    --maps BUILD --map mp_name --mode tdm --checks checks.json --output reports/mp_name
+```
+
 
 ## Initial integrated repositories
 
 - https://github.com/taskinoz/r1-model-compiler
 - https://github.com/taskinoz/r2-model-compiler
+- https://github.com/taskinoz/r5-model-compiler (private)
 - https://github.com/taskinoz/PS4-Northstar
 - https://github.com/taskinoz/apex-to-titanfall-2
 - https://github.com/taskinoz/Titanfall-2-Custom-Maps
@@ -44,10 +96,14 @@ See `registry/tools/` for metadata, support boundaries, and verification state.
 1. Read `AGENTS.md`.
 2. Open `games/<target>/AGENTS.md`.
 3. Discover tools in `registry/tools/`.
-4. Validate registry data:
+4. List the local tools: `python -m ares` (model tools); see the map tools section.
+5. Validate registry data:
    - `python scripts/validate-registry.py`
-5. Run focused tests:
+6. Run the tests:
    - `python -m unittest discover -s tests -p "test_*.py"`
+   - `python -m unittest discover -s tools -p "test_*.py"`
+   - `python -m unittest discover -s harnesses/adapters -p "test_*.py"`
+   - `python scripts/sync-agent-skills.py --check`
 
 ## Contributing
 
@@ -57,3 +113,12 @@ See `registry/tools/` for metadata, support boundaries, and verification state.
 - Update registry verification fields when new evidence is gathered.
 
 See `CONTRIBUTING.md` for details.
+
+## Licence and AI disclosure
+
+MIT (see [LICENSE](LICENSE)), except files whose header says GPL-2.0-or-later:
+the map tools in `tools/` and the map harnesses in `harnesses/adapters/`, which
+came from [taskinoz/MRVN-Radiant](https://github.com/taskinoz/MRVN-Radiant).
+`ares/` and `tests/` are MIT; their provenance is in `ares/SOURCES.json`.
+ARES was written with AI; see [AI.md](AI.md) for what was generated and for the
+human-built projects it depends on.

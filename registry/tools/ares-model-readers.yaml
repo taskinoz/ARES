@@ -1,0 +1,42 @@
+id: ares-model-readers
+name: ARES model readers
+description: "Standalone readers for MDL v52, MDL v53, RMDL v54 and IVP physics: headers, bones, render meshes, sequences, animations."
+repository: https://github.com/taskinoz/ARES
+targets: [r1, tfo, r2, r5]
+categories: [models, inspection]
+capabilities: [model-inspection, physics-inspection]
+formats:
+  inputs: [mdl, vvd, dx11.vtx, phy, rmdl, vg]
+  outputs: [json, text]
+integration:
+  type: local-adapter
+  harness: verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: 8353f390378e8d5d2da01da355c8fe82e289f820
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/inspect-respawn-model
+  harness_path: null
+  license: MIT
+verification:
+  status: verified
+  last_checked: "2026-11-12"
+  notes:
+    - Validated upstream on the retail corpora (each compiler round-trips its corpus through them).
+    - ARES tests read compiled fixtures of all three versions.
+    - "Vendored from taskinoz/r1-model-compiler, taskinoz/r2-model-compiler, taskinoz/r5-model-compiler at 8353f390378e, 9356555d02cb, 9b3db132fe7f; see ares/SOURCES.json."
+inspection:
+  checked_at: "2026-11-12T12:12:50Z"
+  method: local-tests-and-runs
+  evidence:
+    - ares/r1/mdl52.py
+    - ares/r2/mdl53.py
+    - ares/r5/mdl54.py
+    - ares/source/ivp_phy.py
+    - ares/common/geometry.py
+    - tests/test_tools.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/.agents/skills/inspect-respawn-model/SKILL.md

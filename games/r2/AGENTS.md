@@ -8,3 +8,11 @@ Applicable tool IDs:
 - apex-to-titanfall-2
 - titanfall-2-custom-maps
 - mrvn-radiant
+- ares-model-readers
+- ares-model-harness-northstar
+- ares-map-harness-northstar
+- ares-bsp-tools
+
+Model tools (`ares/`): skills `inspect-respawn-model`, `test-northstar`. Model harness: `python -m ares.harness.northstar` (isolated Northstar profile).
+
+Map tools: skill `inspect-bsp` (`tools/`, BSP v37, RPak v7, VPK, STBSP). Map harness: `python harnesses/adapters/northstar_harness.py` (isolated `R2AresHarness` profile; [guide](../../harnesses/docs/northstar.md)). Mod logic: skill `test-northstar-mod`. Skill `run-harness`.

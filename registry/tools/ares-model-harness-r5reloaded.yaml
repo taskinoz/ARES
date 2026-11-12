@@ -1,0 +1,38 @@
+id: ares-model-harness-r5reloaded
+name: ARES R5Reloaded harness
+description: "Isolated R5Reloaded runtime: spawns, sequences, attachments, trace collision, physics drops and ragdoll switches, with screenshots."
+repository: https://github.com/taskinoz/ARES
+targets: [r5]
+categories: [testing, runtime]
+capabilities: [runtime-testing, collision-testing, physics-testing]
+formats:
+  inputs: [rpak, json]
+  outputs: [json, tga]
+integration:
+  type: local-adapter
+  harness: verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: 9356555d02cb49b14c264d7f1a5e7cbe05c4cd63
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/test-r5reloaded
+  harness_path: ares/harness/r5reloaded.py
+  license: MIT
+verification:
+  status: verified
+  last_checked: "2026-11-12"
+  notes:
+    - "Run from ARES on 2026-11-12 against R5R v2.6.52: passed (204 traces of each kind, 8 drops, 2 ragdoll switches)."
+    - Ragdoll motion is client-side and not script-measurable.
+    - Vendored from taskinoz/r5-model-compiler at 9356555d02cb; see ares/SOURCES.json.
+inspection:
+  checked_at: "2026-11-12T12:12:50Z"
+  method: local-tests-and-runs
+  evidence:
+    - ares/harness/r5reloaded.py
+    - tests/test_tools.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/.agents/skills/test-r5reloaded/SKILL.md

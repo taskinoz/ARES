@@ -5,3 +5,6 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.pyc
+# Harness and tool output; keep runs out of the tree.
+reports/
+.local/
