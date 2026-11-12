@@ -1,0 +1,37 @@
+id: ares-rpak-packager
+name: ARES RPak packager
+description: "Build an S3 R5Reloaded RPak (model, rig, sequences, PHY) from --external-assets output with a user-supplied RePak."
+repository: https://github.com/taskinoz/ARES
+targets: [r5]
+categories: [packaging]
+capabilities: [rpak-packaging]
+formats:
+  inputs: [rmdl, vg, rrig, rseq, phy]
+  outputs: [rpak, starpak, json]
+integration:
+  type: local-adapter
+  harness: verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: 9356555d02cb49b14c264d7f1a5e7cbe05c4cd63
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/test-r5reloaded
+  harness_path: null
+  license: MIT
+verification:
+  status: verified
+  last_checked: "2026-11-12"
+  notes:
+    - Packages loaded in R5R v2.6.52 upstream and from ARES (2026-11-12). RePak is not bundled.
+    - Vendored from taskinoz/r5-model-compiler at 9356555d02cb; see ares/SOURCES.json.
+inspection:
+  checked_at: "2026-11-12T12:12:50Z"
+  method: local-tests-and-runs
+  evidence:
+    - ares/r5/rpak.py
+    - tests/test_tools.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/.agents/skills/test-r5reloaded/SKILL.md

@@ -1,0 +1,37 @@
+id: ares-model-harness-tfo
+name: ARES Titanfall Online harness
+description: "TFORevive runtime for MDL v52: temporary mod, hashed companions, telemetry, collision/physics probes, window capture."
+repository: https://github.com/taskinoz/ARES
+targets: [tfo]
+categories: [testing, runtime]
+capabilities: [runtime-testing, physics-testing]
+formats:
+  inputs: [mdl, vvd, dx11.vtx, phy]
+  outputs: [json, bmp]
+integration:
+  type: local-adapter
+  harness: partially-verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: 9b3db132fe7f9d0e47b3756e6b367fb99c88d6f1
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/test-titanfall1
+  harness_path: ares/harness/tfo.py
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-12"
+  notes:
+    - "Used for in-game validation upstream; ARES runs the upstream staging and telemetry tests, not a game launch."
+    - Vendored from taskinoz/r1-model-compiler at 9b3db132fe7f; see ares/SOURCES.json.
+inspection:
+  checked_at: "2026-11-12T12:12:50Z"
+  method: local-tests-and-runs
+  evidence:
+    - ares/harness/tfo.py
+    - tests/test_tools.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/.agents/skills/test-titanfall1/SKILL.md
