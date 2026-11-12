@@ -1,0 +1,37 @@
+id: r2-model-compiler
+name: R2 Model Compiler
+description: Native model compiler for Titanfall 2 / Northstar (MDL v53).
+repository: https://github.com/taskinoz/r2-model-compiler
+targets: [r2]
+categories: [models, compilation]
+capabilities: [model-compilation]
+formats:
+  inputs: [qc, smd, dmx]
+  outputs: [mdl]
+integration:
+  type: external-repository
+  harness: partially-verified
+  agent_instructions: verified
+  setup: upstream
+upstream:
+  default_branch: main
+  commit: 8353f390378e8d5d2da01da355c8fe82e289f820
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: tools/ingame_test.py
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-11"
+  notes:
+    - MDL v53 target and test workflows are documented upstream.
+inspection:
+  checked_at: "2026-11-11T14:25:30Z"
+  method: github-api-readme-agents-commit
+  evidence:
+    - commit:8353f390378e8d5d2da01da355c8fe82e289f820
+    - README.md
+    - AGENTS.md
+documentation:
+  - https://github.com/taskinoz/r2-model-compiler

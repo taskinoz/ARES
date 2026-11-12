@@ -1,0 +1,36 @@
+id: mrvn-radiant
+name: MRVN Radiant
+description: Mapping and level editing toolchain with Respawn-specific support.
+repository: https://github.com/taskinoz/MRVN-Radiant
+targets: [tfo, r2, r5]
+categories: [maps, tooling]
+capabilities: [map-authoring, map-compilation]
+formats:
+  inputs: [map]
+  outputs: [bsp]
+integration:
+  type: external-repository
+  harness: unverified
+  agent_instructions: unverified
+  setup: upstream
+upstream:
+  default_branch: respawn-format-research
+  commit: 53fd03029f3e8f0b0b421cedaa6105c1506d9daf
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: mixed
+verification:
+  status: pending
+  last_checked: "2026-11-11"
+  notes:
+    - README confirms game support and map tooling focus.
+inspection:
+  checked_at: "2026-11-11T14:25:30Z"
+  method: github-api-readme-commit
+  evidence:
+    - commit:53fd03029f3e8f0b0b421cedaa6105c1506d9daf
+    - README.md
+documentation:
+  - https://github.com/taskinoz/MRVN-Radiant

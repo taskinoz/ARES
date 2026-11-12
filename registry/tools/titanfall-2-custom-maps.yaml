@@ -1,0 +1,36 @@
+id: titanfall-2-custom-maps
+name: Titanfall 2 Custom Maps
+description: Collection of custom map resources, packaging, and release workflows.
+repository: https://github.com/taskinoz/Titanfall-2-Custom-Maps
+targets: [r2]
+categories: [maps, resources]
+capabilities: [map-packaging, release-workflow]
+formats:
+  inputs: [map-source, mod-files]
+  outputs: [northstar-mod-package]
+integration:
+  type: external-repository
+  harness: unverified
+  agent_instructions: unverified
+  setup: upstream
+upstream:
+  default_branch: main
+  commit: ac64b7cd22bf2c2f0b89fc9bfde323ce3256d211
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: null
+verification:
+  status: pending
+  last_checked: "2026-11-11"
+  notes:
+    - README reviewed; deeper automation/harness audit pending.
+inspection:
+  checked_at: "2026-11-11T14:25:30Z"
+  method: github-api-readme-commit
+  evidence:
+    - commit:ac64b7cd22bf2c2f0b89fc9bfde323ce3256d211
+    - README.md
+documentation:
+  - https://github.com/taskinoz/Titanfall-2-Custom-Maps
