@@ -1,0 +1,37 @@
+id: ares-map-harness-tfo
+name: ARES Titanfall Online map harness
+description: "Loads a compiled Titanfall 1 map in Titanfall Online (TFORevive) and runs traces, hulls, physics drops and view captures."
+repository: https://github.com/taskinoz/ARES
+targets: [tfo]
+categories: [testing, runtime]
+capabilities: [runtime-testing, collision-testing, physics-testing, map-testing, screenshots]
+formats:
+  inputs: [bsp, json]
+  outputs: [json, png, log]
+integration:
+  type: local-adapter
+  harness: partially-verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: respawn-format-research
+  commit: 53fd03029f3e8f0b0b421cedaa6105c1506d9daf
+  readme_path: harnesses/docs/tfo.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/run-harness
+  harness_path: harnesses/adapters/tfo_harness.py
+  license: GPL-2.0-or-later
+verification:
+  status: partial
+  last_checked: "2026-11-12"
+  notes:
+    - "Used in game from MRVN-Radiant (tools/respawn/tfo_harness.py); the ARES copy is unit-tested only, not yet run in game from ARES."
+    - "Identifiers renamed from MRVN to ARES (mod ARES.TF1Harness, [ARES] log lines)."
+inspection:
+  checked_at: "2026-11-12T12:30:00Z"
+  method: local-tests
+  evidence:
+    - harnesses/adapters/tfo_harness.py
+    - harnesses/adapters/test_tfo_harness.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/harnesses/docs/tfo.md
