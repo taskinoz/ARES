@@ -1,0 +1,39 @@
+id: ares-shadps4-harness
+name: ARES shadPS4 harness
+description: "Game-agnostic PS4 runtime harness for the shadPS4 emulator: boot with log success/failure patterns, step scripts (log waits, pad input, window captures with black-screen checks, guest memory reads at module+offset), result.json output. Built for PS4 Northstar (Titanfall 2)."
+repository: https://github.com/taskinoz/ARES
+targets: [r2]
+categories: [testing, runtime, emulation]
+capabilities: [runtime-testing, boot-testing, pad-input, screenshots, memory-reads]
+formats:
+  inputs: [eboot, json]
+  outputs: [json, png, log]
+integration:
+  type: local-adapter
+  harness: verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: master
+  commit: 62092d684089bbbe5cb79a781d2e4130f7e4e89d
+  readme_path: harnesses/docs/shadps4.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/test-shadps4
+  harness_path: harnesses/adapters/shadps4_harness.py
+  license: MIT
+verification:
+  status: verified
+  last_checked: "2026-11-13"
+  notes:
+    - "Run on 2026-11-13 with a shadPS4 pre-release build and Titanfall 2 PS4 (CUSA04013) with PS4 Northstar: the boot matched its success line, a step capture (1280x720) was correctly not black, a module+offset peek read the eboot, and the adapter stopped only its own emulator."
+    - "pad, capture and peek are Windows-only; boot and modules are portable but were run on Windows only."
+    - "Generalised from PS4 Northstar's Invoke-TestBoot.ps1, Send-PadInput.ps1 and Capture-GameWindow.ps1."
+inspection:
+  checked_at: "2026-11-13T06:00:00Z"
+  method: local-tests-and-runs
+  evidence:
+    - harnesses/adapters/shadps4_harness.py
+    - harnesses/adapters/test_ps4_harnesses.py
+    - harnesses/docs/shadps4.md
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/harnesses/docs/shadps4.md

@@ -48,6 +48,18 @@ reject the map. Confirm with a [harness](../harnesses/README.md).
 | `rpak.py` | Reads decompressed TF2 v7 RPaks (asset table, v12 materials) |
 | `rpak_apex.py` | Reads unpatched, decompressed Apex S3 v8 RPaks |
 
+## PS4 modules, ports and save data
+
+| Tool | Does | Example |
+| --- | --- | --- |
+| `prx_inspect.py` | Decrypted PS4 module (`.prx`, `eboot.bin`) or x86-64 ELF: segments, VA/file-offset conversion, string search, rip-relative code xrefs, vtables with relocations applied, byte patterns, disassembly (with capstone) | `python tools/prx_inspect.py xrefs engine.prx --string echo --exact` |
+| `rpak_platform.py` | Counts PC and PS4 texture layouts in TF2 v7 RPaks; a PC pak in a PS4 mod renders black | `python tools/rpak_platform.py --scan mods --require ps4` |
+| `pdef.py` | Persistence definition (`.pdef`) size, field offsets and diffs | `python tools/pdef.py diff old.pdef new.pdef` |
+
+Module addresses are module-relative VAs (`engine+0x1234`); PS4 load addresses
+change every run. Skill: `reverse-engineer-prx`. Runtime checks on PS4 go
+through the [shadPS4 and GoldHEN adapters](../harnesses/README.md).
+
 ## Edit and optimise Titanfall 2 maps
 
 These write maps of any size: `bsp_edit.py` streams lumps instead of loading
@@ -95,6 +107,9 @@ The tests build synthetic BSPs and need no game files.
 
 ## Provenance
 
+`rpak_platform.py` ports PS4 Northstar's runtime check
+(`launcher/include/northstar_ps4/mod_rpaks.h`); `prx_inspect.py` and `pdef.py`
+generalise that project's reverse-engineering and save-data scripts.
 The map edit tools and `thunderstore_upload.py` come from
 [taskinoz/apex-to-titanfall-2](https://github.com/taskinoz/apex-to-titanfall-2) (MIT).
 The others were written in [taskinoz/MRVN-Radiant](https://github.com/taskinoz/MRVN-Radiant)

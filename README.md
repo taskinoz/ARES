@@ -80,6 +80,20 @@ python harnesses/adapters/northstar_harness.py --game C:/Games/Titanfall2 `
 ```
 
 
+## PS4 ports and consoles
+
+For porting Respawn games and mods to PS4 (built for PS4 Northstar, Titanfall 2
+CUSA04013). The adapters work with any PS4 title.
+
+- [`tools/`](tools/README.md): `prx_inspect` (decrypted PRX/eboot: strings,
+  code xrefs, relocated vtables, disassembly), `rpak_platform` (PC vs PS4
+  texture layout in RPaks), `pdef` (persistence layout). Skill: `reverse-engineer-prx`.
+- [`shadps4_harness.py`](harnesses/docs/shadps4.md): boot in the shadPS4
+  emulator with log patterns, pad input, captures and memory reads. Skill: `test-shadps4`.
+- [`goldhen.py`](harnesses/docs/goldhen.md): deploy to a real GoldHEN PS4 over
+  FTP, enable plugins, record the kernel log and summarise crashes. Skill:
+  `deploy-goldhen-plugin`.
+
 ## Initial integrated repositories
 
 - https://github.com/taskinoz/r1-model-compiler

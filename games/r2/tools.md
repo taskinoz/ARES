@@ -9,3 +9,6 @@
 - `ares-model-harness-northstar`
 - `ares-map-harness-northstar`
 - `ares-bsp-tools`
+- `ares-ps4-module-tools`
+- `ares-shadps4-harness`
+- `ares-goldhen-tools`
