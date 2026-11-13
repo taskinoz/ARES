@@ -73,4 +73,5 @@ The adapter unit tests need no game install:
 
 ```powershell
 python -m unittest discover -s harnesses/adapters -p "test_*.py"
+python -m unittest discover -s harnesses/recipes -p "test_*.py"
 ```

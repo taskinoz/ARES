@@ -1,0 +1,39 @@
+id: ares-tf2-map-edits
+name: ARES Titanfall 2 map edit tools
+description: "Standard-library writers for Titanfall 2 (BSP v37) maps of any size: streaming lump replacement, triangle-collision and sun-shadow position welding, static props in the cascaded shadow map, in-game-captured reflection cubemaps, and an all-visible-cell fix for portal-less visibility cells."
+repository: https://github.com/taskinoz/ARES
+targets: [r2]
+categories: [maps, optimisation, lighting]
+capabilities: [map-editing, map-optimisation, collision-welding, shadow-welding, cubemaps, csm-shadows, visibility-cells]
+formats:
+  inputs: [bsp, mdl, png, json]
+  outputs: [bsp, json]
+integration:
+  type: local-adapter
+  harness: verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: 4ba6ec8b1ed2b57d88b382248c643b7682e1e031
+  readme_path: tools/README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/optimise-tf2-map
+  harness_path: harnesses/recipes/northstar_cubemaps.py
+  license: MIT
+verification:
+  status: verified
+  last_checked: "2026-11-13"
+  notes:
+    - "Ported from taskinoz/apex-to-titanfall-2, where the original tools shipped six Northstar map releases (Thunderstore, November 2026) after in-game acceptance on Northstar 1.31.14."
+    - "ARES ports checked on real maps: weld_shadow_meshes.py gives byte-identical lumps to the shipped tool on Firing Range (2.90M to 0.61M positions); weld_tricoll.py gives the shipped result on Thunderdome (22.97M to 12.90M positions, 120.8 MB saved)."
+    - "csm_props.py and cubemaps.py are unit-tested on synthetic maps; their in-game results come from the original tools (see docs/research/tf2-map-rendering-and-visibility.md)."
+inspection:
+  checked_at: "2026-11-13T12:00:00Z"
+  method: local-tests-and-runs
+  evidence:
+    - tools/test_tf2_map_edits.py
+    - docs/research/tf2-map-rendering-and-visibility.md
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/tools/README.md
+  - https://github.com/taskinoz/ARES/blob/main/docs/research/tf2-map-rendering-and-visibility.md
