@@ -1,0 +1,37 @@
+id: ares-northstar-recipes
+name: ARES Northstar harness recipes
+description: "Multi-step Titanfall 2 / Northstar game procedures on the ARES map harness: release acceptance for a map mod (spawn probes in PS and FFA, team respawns, weapon fire, postmatch, stock-map reload, clean logs) and HUD-free cubemap view capture."
+repository: https://github.com/taskinoz/ARES
+targets: [r2]
+categories: [testing, runtime]
+capabilities: [runtime-testing, map-testing, release-acceptance, screenshots, cubemaps]
+formats:
+  inputs: [northstar-mod, bsp, json]
+  outputs: [json, png, log]
+integration:
+  type: local-adapter
+  harness: partially-verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: 4ba6ec8b1ed2b57d88b382248c643b7682e1e031
+  readme_path: harnesses/recipes/README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/accept-northstar-map
+  harness_path: harnesses/recipes/northstar_acceptance.py
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-13"
+  notes:
+    - "The procedures come from taskinoz/apex-to-titanfall-2 release_map.py and build_cubemaps.py, which passed six maps on Northstar 1.31.14 (November 2026)."
+    - "Rebuilt on northstar_harness.Session; offline parts unit-tested (harnesses/recipes/test_recipes.py)."
+inspection:
+  checked_at: "2026-11-13T12:00:00Z"
+  method: local-tests-and-runs
+  evidence:
+    - harnesses/recipes/README.md
+    - harnesses/recipes/test_recipes.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/harnesses/recipes/README.md

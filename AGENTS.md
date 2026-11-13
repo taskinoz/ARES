@@ -70,6 +70,9 @@ Do not report runtime validation when only static/tool-level checks were perform
   own). Report harness outcomes through `python -m ares.result`.
 - Map tools and map harnesses: check maps statically with `tools/` (skill `inspect-bsp`),
   then in game with `harnesses/adapters/` (skill `run-harness`; Northstar mods: `test-northstar-mod`).
+  Optimise Titanfall 2 maps with the `tools/` writers (skills `optimise-tf2-map`, `add-tf2-prop-shadows`,
+  `add-tf2-cubemaps`). Before a release, run `harnesses/recipes/northstar_acceptance.py` (skill
+  `accept-northstar-map`), then `publish-thunderstore`.
   Guides are in `harnesses/docs/`. Harnesses stage only owned files in isolated profiles
   and restore everything afterwards. Never stop a game or server process you didn't
   start: a Northstar dedicated server may be running (the map harness uses `--hostport 37040`).

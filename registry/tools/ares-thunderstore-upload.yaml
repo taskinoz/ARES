@@ -1,0 +1,36 @@
+id: ares-thunderstore-upload
+name: ARES Thunderstore package check and upload
+description: "Standard-library Thunderstore package layout check and publisher using Thunderstore's multipart upload with background (asynchronous) validation, for large Northstar mod and map packages."
+repository: https://github.com/taskinoz/ARES
+targets: [r2]
+categories: [packaging, publishing]
+capabilities: [package-validation, publishing]
+formats:
+  inputs: [zip]
+  outputs: [json]
+integration:
+  type: local-adapter
+  harness: unverified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: 4ba6ec8b1ed2b57d88b382248c643b7682e1e031
+  readme_path: tools/README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/publish-thunderstore
+  harness_path: null
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-13"
+  notes:
+    - "The upload protocol code published taskinoz's Northstar map packages (400-720 MB, November 2026) from taskinoz/apex-to-titanfall-2 CI; the ARES copy adds parameters and the package check, and its check is unit-tested. It has not uploaded from ARES."
+inspection:
+  checked_at: "2026-11-13T12:00:00Z"
+  method: local-tests-and-runs
+  evidence:
+    - tools/thunderstore_upload.py
+    - tools/test_tf2_map_edits.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/tools/README.md

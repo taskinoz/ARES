@@ -48,6 +48,31 @@ reject the map. Confirm with a [harness](../harnesses/README.md).
 | `rpak.py` | Reads decompressed TF2 v7 RPaks (asset table, v12 materials) |
 | `rpak_apex.py` | Reads unpatched, decompressed Apex S3 v8 RPaks |
 
+## Edit and optimise Titanfall 2 maps
+
+These write maps of any size: `bsp_edit.py` streams lumps instead of loading
+the map. Each takes `--output OUT.bsp`, or replaces the input in place. Each
+decodes what it wrote and compares it with the input before saving. They are
+MIT licensed, from [taskinoz/apex-to-titanfall-2](https://github.com/taskinoz/apex-to-titanfall-2).
+Background: [the research note](../docs/research/tf2-map-rendering-and-visibility.md).
+
+| Tool | Does |
+| --- | --- |
+| `bsp_edit.py` | Reads lumps from and replaces lumps in v29/v37 BSPs, moving the GAME_LUMP directory offsets with it |
+| `weld_tricoll.py` | Stores each triangle-collision position once per header. A converted map went from 19.96M to 5.76M positions; retail is about 0.65 per triangle |
+| `weld_shadow_meshes.py` | Stores each sun-shadow mesh position once, saving 24-28 MB on converted arenas |
+| `csm_props.py` | Inspects the cascaded-shadow object tree, or lists static props in it so they cast real-time sun shadows (bounds from `.mdl` files) |
+| `cubemaps.py` | Plans cubemap origins, inspects a map's cubemaps, and writes in-game-captured faces as BC6H VTF, pakfile and per-mesh assignments (Pillow and `texconv`) |
+| `cells_all_visible.py` | Finds visibility cells without portals, which hide entities outside the camera's cell, and sends every point to the all-visible cell |
+
+Skills: `optimise-tf2-map`, `add-tf2-prop-shadows`, `add-tf2-cubemaps`.
+
+## Publishing
+
+`thunderstore_upload.py check` validates a Thunderstore package's layout
+offline. `upload` publishes it with Thunderstore's multipart, background-validated
+protocol; the token comes from `$TCLI_AUTH_TOKEN`. Skill: `publish-thunderstore`.
+
 ## Collision oracles
 
 `swept_box.py` and `swept_capsule.py` are independent maths references for
@@ -70,7 +95,9 @@ The tests build synthetic BSPs and need no game files.
 
 ## Provenance
 
-These tools were written in [taskinoz/MRVN-Radiant](https://github.com/taskinoz/MRVN-Radiant)
+The map edit tools and `thunderstore_upload.py` come from
+[taskinoz/apex-to-titanfall-2](https://github.com/taskinoz/apex-to-titanfall-2) (MIT).
+The others were written in [taskinoz/MRVN-Radiant](https://github.com/taskinoz/MRVN-Radiant)
 (`tools/respawn`, commit `53fd030`) and moved here so they can be reused
 without the map editor. Format research and sources are cited in each module's
 docstring. The cited notes are in that repository's `docs/respawn/` folder. The

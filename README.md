@@ -28,7 +28,7 @@ ARES is an agent-first, documentation-driven repository for discovering and orch
 - `.agents/skills/`: reusable, task-scoped skill documents (mirrored into
   `.claude/skills/` by `scripts/sync-agent-skills.py`).
 - `ares/`: standalone model tools and in-game model harnesses (Python package).
-- `tools/`, `harnesses/adapters/`: map tools and map harnesses (see below).
+- `tools/`, `harnesses/adapters/`, `harnesses/recipes/`: map tools, map harnesses and multi-step game procedures (see below).
 - `docs/`: architecture, conventions, compatibility, workflows.
 - `harnesses/`: the result contract, map adapters and their guides.
 - `scripts/`: validation, discovery and upstream-refresh utilities.
@@ -62,6 +62,7 @@ Check a map statically first, then test it in the game.
   `portals`, `game_lump`, `lighting`, `audit_tf2_budget`), plus RPak readers,
   VPK/STBSP writers and swept-collision oracles. Skill: `inspect-bsp`.
 - [`harnesses/adapters/`](harnesses/README.md): runtime harnesses for maps and mods.
+- [`harnesses/recipes/`](harnesses/recipes/README.md): Northstar release acceptance and cubemap capture, built on the harness.
 
   | Target | Harness | Guide |
   | --- | --- | --- |
@@ -103,6 +104,7 @@ See `registry/tools/` for metadata, support boundaries, and verification state.
    - `python -m unittest discover -s tests -p "test_*.py"`
    - `python -m unittest discover -s tools -p "test_*.py"`
    - `python -m unittest discover -s harnesses/adapters -p "test_*.py"`
+   - `python -m unittest discover -s harnesses/recipes -p "test_*.py"`
    - `python scripts/sync-agent-skills.py --check`
 
 ## Contributing

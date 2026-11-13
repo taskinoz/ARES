@@ -29,3 +29,5 @@ jobs:
         run: python -m unittest discover -s tools -p "test_*.py"
       - name: Test map harness adapters
         run: python -m unittest discover -s harnesses/adapters -p "test_*.py"
+      - name: Test harness recipes
+        run: python -m unittest discover -s harnesses/recipes -p "test_*.py"
