@@ -15,6 +15,14 @@ Each prints its options with `--help`.
 | R1: Titanfall 1 / R1Delta | `r1_harness.py` | R1Delta's built-in JSON-RPC (MCP) server | [r1delta.md](docs/r1delta.md) |
 | R5: Apex / R5Reloaded SDK 2.3 | `r5_harness.py`, `r5_harnessctl.py`, `r5_harness_smoke.py` | Native protobuf netconsole behind an HTTP controller | [r5reloaded.md](docs/r5reloaded.md) |
 
+PS4 adapters work for any title, not only one engine. They don't use the shared
+checks format; success and failure are log patterns you supply.
+
+| Platform | Adapter | Control | Guide |
+| --- | --- | --- | --- |
+| PS4 in shadPS4 | `shadps4_harness.py` | Log patterns, posted pad keys, window capture, guest memory reads | [shadps4.md](docs/shadps4.md) |
+| Real PS4 with GoldHEN | `goldhen.py` | FTP deploy, `plugins.ini`, kernel log recorder and crash summary | [goldhen.md](docs/goldhen.md) |
+
 ## Shared checks format
 
 The TFO, R1Delta and Northstar adapters accept the same core `checks.json`

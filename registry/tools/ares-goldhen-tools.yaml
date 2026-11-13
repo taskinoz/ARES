@@ -1,0 +1,38 @@
+id: ares-goldhen-tools
+name: ARES GoldHEN deploy and kernel-log tools
+description: "Real PS4 (GoldHEN) deployment and observation: FTP upload with LIST size verification and resumable tree sync, plugins.ini section merging with a local backup, kernel-log recorder (TCP 3232) and last-boot/crash summary with module offsets, llvm-nm symbols and a secret filter."
+repository: https://github.com/taskinoz/ARES
+targets: [r2]
+categories: [deployment, testing, hardware]
+capabilities: [ftp-deploy, plugin-enable, kernel-log, crash-analysis]
+formats:
+  inputs: [prx, elf, log]
+  outputs: [json, log]
+integration:
+  type: local-adapter
+  harness: partially-verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: master
+  commit: 62092d684089bbbe5cb79a781d2e4130f7e4e89d
+  readme_path: harnesses/docs/goldhen.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/deploy-goldhen-plugin
+  harness_path: harnesses/adapters/goldhen.py
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-13"
+  notes:
+    - "Unit tests pass with a fake FTP server and a local kernel-log socket."
+    - "The logic is generalised from PS4 Northstar's upload.py, klog.py and lastboot.py, which were used against a GoldHEN PS4; this adapter itself has not yet been run against a console."
+inspection:
+  checked_at: "2026-11-13T06:00:00Z"
+  method: local-tests
+  evidence:
+    - harnesses/adapters/goldhen.py
+    - harnesses/adapters/test_ps4_harnesses.py
+    - harnesses/docs/goldhen.md
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/harnesses/docs/goldhen.md

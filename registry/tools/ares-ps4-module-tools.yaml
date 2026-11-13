@@ -1,0 +1,41 @@
+id: ares-ps4-module-tools
+name: ARES PS4 module and port tools
+description: "Standard-library tools for PS4 ports: decrypted PRX/eboot inspection (segments, VA/file offsets, string and rip-relative code xrefs, relocated vtables, byte patterns, capstone disassembly), TF2 RPak texture-platform checks (PC vs PS4 layout) and pdef persistence layout, size and diffs."
+repository: https://github.com/taskinoz/ARES
+targets: [r2]
+categories: [reverse-engineering, inspection, porting]
+capabilities: [module-inspection, xref-search, vtable-reading, rpak-platform-check, persistence-layout]
+formats:
+  inputs: [prx, sprx, elf, rpak, pdef]
+  outputs: [json]
+integration:
+  type: local-adapter
+  harness: unverified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: master
+  commit: 62092d684089bbbe5cb79a781d2e4130f7e4e89d
+  readme_path: tools/README.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/reverse-engineer-prx
+  harness_path: null
+  license: MIT
+verification:
+  status: verified
+  last_checked: "2026-11-13"
+  notes:
+    - "Unit tests on synthetic RPaks, pdefs and ELFs pass (tools/test_ps4_tools.py)."
+    - "Checked on 2026-11-13 against Titanfall 2 PS4 CUSA04013 1.13 engine.prx (fa59636b...): the echo ConCommand registration, ConCommand constructor callers and a RELATIVE-relocated vtable match addresses verified in game."
+    - "rpak_platform.py matched PS4 Northstar's runtime check on PC, converted PS4 and compressed retail paks; pdef.py sizes match the original script for PC v231 and PS4 v929."
+    - "Generalised from PS4 Northstar's scripts and runtime check (mod_rpaks.h) at the listed commit."
+inspection:
+  checked_at: "2026-11-13T06:00:00Z"
+  method: local-tests-and-runs
+  evidence:
+    - tools/prx_inspect.py
+    - tools/rpak_platform.py
+    - tools/pdef.py
+    - tools/test_ps4_tools.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/tools/README.md
