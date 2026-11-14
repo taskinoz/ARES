@@ -1,6 +1,6 @@
 # TF1 / TFO compatibility evidence
 
-14 November 2026. Phase 2 targets Titanfall Online (TFORevive.Core 135) and
+15 November 2026. Phase 2 targets Titanfall Online (TFORevive.Core 135) and
 Titanfall 1 (R1Delta 3.0.5). Full compatibility remains open; this checkpoint
 covers selected v29 record layouts, authored brush/flat-patch collision and
 rigid props. Northstar and Apex/R5 are outside this milestone.
@@ -41,10 +41,16 @@ unbaked v29 output. The compiler was fixed upstream in the local MRVN-Radiant
 checkout; a fresh map passes the validator and loads in both runtimes. ARES
 contains the validator, not the compiler fix.
 
-Static/tool evidence: 154 ARES format-tool tests, 65 adapter tests, registry
-validation, and 33 compiled/retail v29 maps pass. The corpus includes Angel
+The compiler also creates a missing intermission camera from an existing pilot
+spawn, preserving authored cameras. Four compiler cases and an R1Delta native
+startup run pass. Cell water indices are checked against LEAF_WATER_DATA; wet/dry
+cell splitting already exists in the opt-in portal compiler path. Underwater
+rendering and paired buoyancy still need acceptance.
+
+Static/tool evidence: 155 ARES format-tool tests, 65 adapter tests, registry
+validation, and 37 compiled/retail v29 maps pass. The corpus includes Angel
 City, Colony, Fracture, Lagoon, Relic and TFO lobby. MRVN-Radiant also passes
-231 tool tests and 55 compiler regression cases.
+232 tool tests and 59 compiler regression cases.
 
 Local native reports live under MRVN-Radiant's
 `.local/respawn/phase2-rtl-fixed/`: `r1-barrels2`, `tfo-barrels2`,

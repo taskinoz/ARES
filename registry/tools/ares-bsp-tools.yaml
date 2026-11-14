@@ -23,9 +23,9 @@ upstream:
   license: GPL-2.0-or-later
 verification:
   status: verified
-  last_checked: "2026-11-14"
+  last_checked: "2026-11-15"
   notes:
-    - "154 format-tool unit tests pass. Expanded v29 records checked against 33 compiled/retail maps in MRVN-Radiant, including Angel City, Colony, Fracture, Lagoon, Relic and TFO lobby; no structural issues in the fresh fixtures/reference corpus."
+    - "155 format-tool unit tests pass. Expanded v29 records checked against 37 compiled/retail maps in MRVN-Radiant, including Angel City, Colony, Fracture, Lagoon, Relic and TFO lobby; no structural issues in the fresh fixtures/reference corpus."
 inspection:
   checked_at: "2026-11-12T12:30:00Z"
   method: local-tests-and-runs
