@@ -40,6 +40,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from physics_observations import observations
 
 MOD = 'ARES.TF1Harness'
 
@@ -58,10 +59,11 @@ def game_crashed(text, exit_code):
 
 
 def height_expectations(expect):
-    if not isinstance(expect, dict) or set(expect) - {'trace_z', 'hull_z', 'drop_z'}:
-        raise ValueError('expect must contain only trace_z, hull_z and drop_z lists')
+    if not isinstance(expect, dict) or set(expect) - {'trace_z', 'hull_z', 'drop_z', 'drop_speed', 'drop_bounds_bottom'}:
+        raise ValueError('unsupported expectation; use trace_z, hull_z, drop_z, drop_speed or drop_bounds_bottom')
     result = []
-    for key, kind in (('trace_z', 'TRACE'), ('hull_z', 'HULL'), ('drop_z', 'DROP')):
+    for key, kind in (('trace_z', 'TRACE'), ('hull_z', 'HULL'), ('drop_z', 'DROP'),
+                      ('drop_speed', 'DROP_SPEED'), ('drop_bounds_bottom', 'DROP_BOUNDS_BOTTOM')):
         rows = expect.get(key, [])
         if not isinstance(rows, list):
             raise ValueError(f'{key} must be a list')
@@ -76,6 +78,13 @@ def height_expectations(expect):
 def expectation_errors(events, expect):
     errors = []
     for kind, index, low, high in height_expectations(expect):
+        if kind in ('DROP_SPEED', 'DROP_BOUNDS_BOTTOM'):
+            field = 'speed' if kind == 'DROP_SPEED' else 'world_bounds_bottom'
+            rows = [row for row in observations({'events': events}) if row['index'] == index]
+            values = [row[field] for row in rows if field in row]
+            if not rows or len(values) != len(rows) or any(not low <= value <= high for value in values):
+                errors.append(f'{kind} {index}: expected [{low}, {high}], observed {values or "missing diagnostics"}')
+            continue
         pattern = rf'^{kind} {index} fraction=\S+ end=(\S+)' if kind in ('TRACE', 'HULL') else rf'^DROP {index} z=(\S+)'
         matches = [match.group(1) for event in events if (match := re.search(pattern, event))]
         try:
@@ -198,7 +207,7 @@ function ARES_Log( text ) { printl( "[ARES] " + text ) }
 function ARES_LogDrop( i, prop )
 {
 	if ( IsValid( prop ) )
-		ARES_Log( "DROP " + i + " z=" + prop.GetOrigin().z + " origin=" + prop.GetOrigin() + " velocity=" + prop.GetVelocity() )
+		ARES_Log( "DROP " + i + " z=" + prop.GetOrigin().z + " origin=" + prop.GetOrigin() + " velocity=" + prop.GetVelocity() + " angles=" + prop.GetAngles() + " bounds_mins=" + prop.GetBoundingMins() + " bounds_maxs=" + prop.GetBoundingMaxs() )
 	else
 		ARES_Log( "DROP " + i + " z=gone" )
 }

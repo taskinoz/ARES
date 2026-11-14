@@ -86,8 +86,11 @@ def validate_checks(checks):
     wait = checks.get('drop_wait', 4)
     if type(wait) not in (int, float) or not math.isfinite(wait) or not 0 < wait <= 120:
         raise ValueError('drop_wait must be a positive duration of at most 120 seconds')
+    sequential = checks.get('drop_sequential', False)
+    if type(sequential) is not bool:
+        raise ValueError('drop_sequential must be a boolean')
     result.update(drop_models=models, drop_wait=float(wait), drop_samples=checks.get('drop_samples', False) is True,
-                  expect=checks.get('expect', {}))
+                  drop_sequential=sequential, expect=checks.get('expect', {}))
     height_expectations(result['expect'])  # reject malformed expectations before launching
     return result
 
@@ -354,6 +357,18 @@ def run_checks(control, checks, pid, output, events, screenshots):
         rows = checks[key]
         for first in range(0, len(rows), BATCH):
             events += control.squirrel(trace_script(rows[first:first + BATCH], first, hull))
+    if checks.get('drop_sequential') and checks['drops']:
+        # Reuse the guarded single-batch path, retaining original event indices.
+        # Each body's final observation precedes its destruction and next spawn.
+        for index, drop in enumerate(checks['drops']):
+            isolated = dict(checks, traces=[], hulls=[], views=[], drops=[drop], drop_sequential=False,
+                            drop_models=[checks['drop_models'][index]] if checks['drop_models'] else [])
+            single_events = []
+            run_checks(control, isolated, pid, output, single_events, screenshots)
+            events.extend(re.sub(r'^(SPAWNED|SAMPLE|DROP) 0\b', lambda m: f'{m[1]} {index}', line)
+                          for line in single_events)
+            control.squirrel('foreach ( p in ::ARES_Drops ) if ( IsValid( p ) ) p.Destroy()')
+        checks = dict(checks, drops=[])
     drops = checks['drops']
     if drops:
         models = checks['drop_models'] or [DEFAULT_MODEL] * len(drops)
@@ -377,7 +392,9 @@ def run_checks(control, checks, pid, output, events, screenshots):
             raise RuntimeError(f'drops {invalid} did not spawn as physics props in R1Delta (models {names}); '
                                'on a compiled map, stage the model files with --model-files')
         report = ('foreach ( i, p in ::ARES_Drops ) { if ( IsValid( p ) ) printl( "[ARES] %s " + i + %s" origin=" + '
-                  'p.GetOrigin() + " velocity=" + p.GetVelocity() ); else printl( "[ARES] %s " + i + " z=gone" ) }')
+                  'p.GetOrigin() + " velocity=" + p.GetVelocity() + " angles=" + p.GetAngles() + '
+                  '" bounds_mins=" + p.GetBoundingMins() + " bounds_maxs=" + p.GetBoundingMaxs() ); '
+                  'else printl( "[ARES] %s " + i + " z=gone" ) }')
         start = time.monotonic()
         while checks['drop_samples'] and time.monotonic() - start < checks['drop_wait']:
             t = round(time.monotonic() - start, 2)

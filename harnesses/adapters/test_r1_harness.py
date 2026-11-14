@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import r1_harness
@@ -128,6 +129,29 @@ class R1HarnessTests(unittest.TestCase):
         self.assertIn('TraceHull( Vector( 1.0000, 2.0000, 3.0000 )', script)
         self.assertIn('"[ARES] HULL 7 fraction=" + r.fraction + " end=" + r.endPos.z', script)
         self.assertIn('TRACE_COLLISION_GROUP_NONE );', script)
+
+    def test_sequential_drops_keep_indices_and_destroy_before_next_spawn(self):
+        calls = []
+        class FakeControl:
+            def squirrel(self, script):
+                if 'CreateEntity' in script:
+                    calls.append('spawn')
+                    return ['SPAWNED 0 valid=true']
+                if 'p.Destroy()' in script:
+                    calls.append('destroy')
+                    return []
+                calls.append('sample')
+                return ['DROP 0 z=0.5']
+        checks = r1_harness.validate_checks({'drops': [[0, 0, 32], [128, 0, 32]],
+                                            'drop_sequential': True, 'drop_wait': 1})
+        events = []
+        with patch('r1_harness.time.sleep'):
+            r1_harness.run_checks(FakeControl(), checks, 0, self.root, events, [])
+        self.assertEqual(calls, ['spawn', 'sample', 'destroy', 'spawn', 'sample', 'destroy'])
+        self.assertEqual(events, ['SPAWNED 0 valid=true', 'DROP 0 z=0.5',
+                                  'SPAWNED 1 valid=true', 'DROP 1 z=0.5'])
+        with self.assertRaises(ValueError):
+            r1_harness.validate_checks({'drop_sequential': 'true'})
 
 
 if __name__ == '__main__':

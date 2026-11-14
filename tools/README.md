@@ -17,6 +17,12 @@ own script, put `tools/` on `sys.path`.
 
 ## Inspect and validate
 
+For v29, record validation also checks water heights/material indices, world
+light strides and finite fields, lightmap dimensions and SKY/RTL plane lengths,
+probe-reference indices, static-prop probe indices and probe-tree ranges/cycles.
+These layouts are scoped to v29; v37 lighting uses different records. Passing
+them establishes selected structural consistency, not shader or gameplay parity.
+
 | Tool | Does | Example |
 | --- | --- | --- |
 | `inspect_bsp.py` | Header, lump table, overlaps, external `.bsp_lump` files and entity headers | `python tools/inspect_bsp.py map.bsp --hash` |

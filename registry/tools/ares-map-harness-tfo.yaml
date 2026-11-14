@@ -23,9 +23,9 @@ upstream:
   license: GPL-2.0-or-later
 verification:
   status: partial
-  last_checked: "2026-11-12"
+  last_checked: "2026-11-14"
   notes:
-    - "Used in game from MRVN-Radiant (tools/respawn/tfo_harness.py); the ARES copy is unit-tested only, not yet run in game from ARES."
+    - "ARES adapter run in TFORevive.Core 135 on an authored v29 brush/patch map: paired R1Delta rays/hulls agree; barrel speed and transformed-bounds expectations pass. Broader gameplay/visual parity is unverified."
     - "Identifiers renamed from MRVN to ARES (mod ARES.TF1Harness, [ARES] log lines)."
 inspection:
   checked_at: "2026-11-12T12:30:00Z"

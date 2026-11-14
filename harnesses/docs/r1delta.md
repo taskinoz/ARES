@@ -48,6 +48,13 @@ Omit `--maps` to test a retail map. `--game` defaults to R1Delta's registry
   the server and physics stops. The harness sends `unpause nomsg` once the
   player exists.
 
+Prop samples and final drops include orientation and local model bounds.
+`expect.drop_speed` and `expect.drop_bounds_bottom` use the shared
+[TFO diagnostics](tfo.md#checks). A rotated model's origin can rest well above
+the plane; use the bounds diagnostic alongside poses, not as an exact contact
+mesh measurement. `drop_sequential: true` isolates each body, waits and reports
+it under its original index, then destroys it before spawning the next body.
+
 ## Recorded results
 
 Retail Angel City (16 traces, 16 barrels) passed, with every barrel resting on
