@@ -269,7 +269,17 @@ function ARES_Run( player )
 		dropped.append( prop )
 		if ( ARES_DropSequential )
 		{
-			wait ARES_DropWait
+			if ( ARES_DropSamples )
+			{
+				for ( local t = 0.0; t < ARES_DropWait; t += 0.2 )
+				{
+					if ( IsValid( prop ) )
+						ARES_Log( "SAMPLE " + i + " t=" + t + " origin=" + prop.GetOrigin() + " velocity=" + prop.GetVelocity() )
+					wait 0.2
+				}
+			}
+			else
+				wait ARES_DropWait
 			ARES_LogDrop( i, prop )
 			if ( IsValid( prop ) ) prop.Destroy()
 		}

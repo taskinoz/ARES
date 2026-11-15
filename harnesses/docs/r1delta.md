@@ -62,6 +62,14 @@ it under its original index, then destroys it before spawning the next body.
 
 ## Recorded results
 
+`GetVelocity()` can report zero while a VPhysics prop's sampled origin changes.
+The legacy `drop_speed` check therefore measures entity-reported velocity, not
+proof of body rest. With `drop_samples: true`, use `physics_observations.py
+REPORT/report.json --output REPORT/motion.json --motion INDEX` to require at
+most 0.25 units of sampled translation over a two-second tail window. See the
+[TFO motion diagnostics](tfo.md) for options and limitations. This does not test
+angular motion or events between samples.
+
 Retail Angel City (16 traces, 16 barrels) passed, with every barrel resting on
 its traced floor. On a compiled closed-solid bevel map, all 5,148 traces and
 hull sweeps matched TFO within 0.001 unit.

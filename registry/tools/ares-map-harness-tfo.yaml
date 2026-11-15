@@ -23,8 +23,9 @@ upstream:
   license: GPL-2.0-or-later
 verification:
   status: partial
-  last_checked: "2026-11-14"
+  last_checked: "2026-11-16"
   notes:
+    - "Paired compiled wet/dry cardboard buoyancy sample completed. Sequential drops now honor drop_samples; position diagnostics detect motion despite zero entity velocity. Dry PHY support passes; broader buoyancy/rest acceptance remains open."
     - "ARES adapter run in TFORevive.Core 135 on an authored v29 brush/patch map: paired R1Delta rays/hulls agree; barrel speed and transformed-bounds expectations pass. Broader gameplay/visual parity is unverified."
     - "Identifiers renamed from MRVN to ARES (mod ARES.TF1Harness, [ARES] log lines)."
 inspection:

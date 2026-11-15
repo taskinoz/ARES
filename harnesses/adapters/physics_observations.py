@@ -90,6 +90,69 @@ def observations(report):
     return result
 
 
+def sample_motion(events, window=2.):
+    """Tail-window translation from samples, independent of entity velocity.
+
+    Finite differences are interval averages, not instantaneous body velocity.
+    Rotation, events between samples and motion after the last sample are not measured.
+    """
+    if not math.isfinite(window) or window <= 0:
+        raise ValueError('motion window must be positive and finite')
+    groups, invalid = {}, {}
+    for event in events:
+        match = re.match(r'SAMPLE (\d+)\b', event)
+        if not match:
+            continue
+        index = int(match[1])
+        try:
+            stamp = re.search(r'\bt=(\S+)', event)
+            t = float(stamp[1]) if stamp else float('nan')
+            if not math.isfinite(t) or t < 0:
+                raise ValueError('invalid sample timestamp')
+            origin = vector(event, 'origin')
+            rows = groups.setdefault(index, [])
+            if rows and t <= rows[-1][0]:
+                raise ValueError('sample timestamps must increase within each drop')
+            rows.append((t, origin))
+        except ValueError as exc:
+            invalid[index] = str(exc)
+    result = []
+    for index in sorted(groups.keys() | invalid.keys()):
+        rows = groups.get(index, [])
+        row = {'index': index, 'sample_count': len(rows)}
+        if index in invalid:
+            row['diagnostic_error'] = invalid[index]
+        elif len(rows) < 2 or rows[-1][0] - rows[0][0] < window:
+            row['diagnostic_error'] = 'insufficient sample duration for motion window'
+        else:
+            start = 0
+            while start + 1 < len(rows) and rows[start + 1][0] <= rows[-1][0] - window:
+                start += 1
+            tail = rows[start:]
+            row.update(start_time=tail[0][0], end_time=tail[-1][0],
+                       duration=tail[-1][0] - tail[0][0],
+                       origin_min=[min(sample[1][axis] for sample in tail) for axis in range(3)],
+                       origin_max=[max(sample[1][axis] for sample in tail) for axis in range(3)],
+                       translation=max(math.dist(a[1], b[1]) for a in tail for b in tail),
+                       max_interval_speed=max(math.dist(a[1], b[1]) / (b[0] - a[0])
+                                              for a, b in zip(tail, tail[1:])))
+        result.append(row)
+    return result
+
+
+def motion_errors(rows, indices, max_translation=.25):
+    if not math.isfinite(max_translation) or max_translation < 0:
+        raise ValueError('maximum translation must be finite and nonnegative')
+    errors = []
+    for index in indices:
+        matches = [row for row in rows if row['index'] == index]
+        if len(matches) != 1 or 'translation' not in matches[0] or 'diagnostic_error' in matches[0]:
+            errors.append(f'DROP {index}: sampled translation is unavailable or invalid')
+        elif not math.isfinite(matches[0]['translation']) or matches[0]['translation'] > max_translation:
+            errors.append(f'DROP {index}: sampled translation exceeds {max_translation}')
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('report', type=Path)
@@ -97,7 +160,15 @@ def main():
     parser.add_argument('--phy', type=Path, help='Optional rigid single-solid Source/Titanfall companion PHY')
     parser.add_argument('--floor', nargs=2, type=float, action='append', default=[], metavar=('INDEX', 'Z'),
                         help='Check actual hull support against a flat floor (requires --phy)')
+    parser.add_argument('--motion', type=int, action='append', default=[], metavar='INDEX',
+                        help='Require tail-window sampled translation for this drop')
+    parser.add_argument('--motion-window', type=float, default=2.)
+    parser.add_argument('--max-translation', type=float, default=.25)
     args = parser.parse_args()
+    if (len(set(args.motion)) != len(args.motion) or any(i < 0 for i in args.motion) or
+            not math.isfinite(args.motion_window) or args.motion_window <= 0 or
+            not math.isfinite(args.max_translation) or args.max_translation < 0):
+        parser.error('motion indices must be unique/nonnegative, window positive and translation nonnegative/finite')
     if args.floor and not args.phy:
         parser.error('--floor requires --phy')
     floors = {}
@@ -105,8 +176,11 @@ def main():
         if not math.isfinite(index) or not index.is_integer() or index < 0 or not math.isfinite(height) or int(index) in floors:
             parser.error('--floor requires unique nonnegative integer indices and finite heights')
         floors[int(index)] = height
-    result = {'scope': 'Rigid pose/support diagnostics; not broad physics or buoyancy parity.',
-              'drops': observations(json.loads(args.report.read_text(encoding='utf-8')))}
+    report = json.loads(args.report.read_text(encoding='utf-8'))
+    result = {'scope': 'Rigid pose/support and sampled translation; not angular rest or broad physics/buoyancy parity.',
+              'velocity_note': 'speed is entity-reported; it may be zero while a VPhysics body moves. '
+                               'Use requested sampled translation checks for observed positional motion.',
+              'drops': observations(report), 'motion': sample_motion(report['events'], args.motion_window)}
     if args.phy:
         if args.phy.suffix.lower() != '.phy':
             parser.error('--phy requires the standalone .phy file so its fingerprint covers the inspected data')
@@ -122,6 +196,7 @@ def main():
         result['phy'] = {'path': str(args.phy.resolve()), 'sha256': hashlib.sha256(args.phy.read_bytes()).hexdigest(),
                          'vertex_count': len(points)}
     result['errors'] = support_errors(result['drops'], floors)
+    result['errors'] += motion_errors(result['motion'], args.motion, args.max_translation)
     args.output.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     return int(bool(result['errors']))
 

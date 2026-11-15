@@ -32,6 +32,13 @@ both water surfaces from staged files, while native Water materials on the same
 BSP still fail visually. This isolates the staging/visibility control without
 claiming Water shader compatibility.
 
+The compiled water room also has a paired wet/dry cardboard buoyancy sample in
+R1Delta and TFO. Dry PHY support and sampled positional rest pass; wet boxes
+continue bobbing. Entity velocity can report zero while props move, so the
+physics diagnostics now offer an independent tail-window translation check.
+TFO sequential drops record samples when requested. This does not establish
+angular rest, broader buoyancy or general physics parity.
+
 ## Principles
 
 1. One source of truth: upstream repositories own implementation details.

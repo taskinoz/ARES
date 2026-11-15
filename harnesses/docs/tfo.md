@@ -45,7 +45,8 @@ Final `DROP` events include `angles`, `bounds_mins` and `bounds_maxs`, as well
 as origin and linear velocity. Both v29 adapters accept these additional ranges
 in `expect`, each as `[[index, minimum, maximum]]`:
 
-- `drop_speed`: final linear speed; e.g. `[0, 0, 0.1]` requires a nearly stopped body.
+- `drop_speed`: magnitude of the entity-reported velocity. This can remain zero
+  while a VPhysics body moves; it does not establish rest by itself.
 - `drop_bounds_bottom`: lowest world Z of the model's rotated local bounding box.
 
 For a box resting on its side, origin height changes while the bottom of the
@@ -64,10 +65,25 @@ python harnesses/adapters/physics_observations.py REPORT_DIR/report.json --outpu
 For a rigid single-solid prop, pass its standalone `--phy FILE.phy` to project
 the actual collision vertices instead of the visual box. Optional repeated
 `--floor INDEX Z` checks require a physics-hull bottom within one unit of that
-flat plane and linear speed at most 0.1. Articulated/multi-solid models are
+flat plane and entity-reported speed at most 0.1. Articulated/multi-solid models are
 rejected. The report fingerprints the PHY; no game mesh is copied into ARES.
 This tests the sampled pose's support, not friction, stacking, buoyancy or
 every contact trajectory.
+
+Both sequential and concurrent drops now honor `drop_samples`. Check sampled
+translation independently of the velocity field:
+
+```powershell
+python harnesses/adapters/physics_observations.py REPORT_DIR/report.json --output REPORT_DIR/motion.json --motion 0 --motion-window 2 --max-translation 0.25
+```
+
+`--motion INDEX` requires samples spanning the tail window and rejects more
+than the given maximum pairwise displacement. Missing, nonfinite, duplicate or
+out-of-order samples fail the requested check. Reports also record tail position
+ranges and peak interval-average speed. They do not measure angular rest or
+motion between samples. Timestamps use the adapter's clock; these finite
+differences are not instantaneous engine velocities. Without `--motion`, this
+information is diagnostic and does not add a motion acceptance gate.
 
 ## Known behaviour
 
