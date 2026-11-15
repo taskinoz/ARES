@@ -67,6 +67,33 @@ class R1HarnessTests(unittest.TestCase):
                                run_id='b' * 32, model_source=self.root / 'assets_dump')
         self.assertFalse((self.r1 / 'addons' / ('ARES.TF1Harness.' + 'b' * 32)).exists())
 
+    def test_material_dependencies_are_staged_and_removed(self):
+        source = self.root / 'assets'
+        material = source / 'materials/water/test.vmt'
+        material.parent.mkdir(parents=True)
+        material.write_text('Water {}')
+        material.with_suffix('.vtf').write_bytes(b'texture')
+        session = r1_harness.prepare(self.app, self.game, self.maps, 'mp_test',
+                                     material_source=source)
+        addon = Path(session['addon'])
+        self.assertEqual((addon / 'materials/water/test.vmt').read_text(), 'Water {}')
+        self.assertEqual((addon / 'materials/water/test.vtf').read_bytes(), b'texture')
+        r1_harness.cleanup(session)
+        self.assertFalse(addon.exists())
+
+    def test_material_tree_rejects_scripts_before_staging(self):
+        source = self.root / 'assets'
+        (source / 'materials').mkdir(parents=True)
+        (source / 'materials/unexpected.nut').write_text('script')
+        before = (self.r1 / 'addonlist.txt').read_bytes()
+        with self.assertRaisesRegex(ValueError, 'unsupported material file'):
+            r1_harness.prepare(self.app, self.game, self.maps, 'mp_test', material_source=source)
+        self.assertEqual((self.r1 / 'addonlist.txt').read_bytes(), before)
+        self.assertFalse((self.r1 / 'addons').exists())
+        (source / 'materials/unexpected.nut').unlink()
+        with self.assertRaisesRegex(ValueError, 'empty'):
+            r1_harness.material_files(source)
+
     def test_cleanup_accepts_the_games_tab_indented_listing(self):
         session = self.prepare()
         name = Path(session['addon']).name
@@ -156,12 +183,13 @@ class R1HarnessTests(unittest.TestCase):
     def test_view_hold_is_cancelled_on_success_and_capture_failure(self):
         for capture_ok in (True, False):
             scripts = []
+            commands = []
             class FakeControl:
                 def squirrel(self, script, context='server'):
                     scripts.append(script)
                     return ['VIEW 0 origin=(vector : (0, 0, 128))'] if 'printl' in script else []
                 def console(self, command):
-                    pass
+                    commands.append(command)
             checks = r1_harness.validate_checks({'views': [[0, 0, 128, 0, 90]]})
             shots = []
             with patch('r1_harness.time.sleep'), patch('r1_harness.capture_window', return_value=capture_ok):
@@ -170,6 +198,7 @@ class R1HarnessTests(unittest.TestCase):
                 else:
                     with self.assertRaisesRegex(RuntimeError, 'screenshot capture failed'):
                         r1_harness.run_checks(FakeControl(), checks, 0, self.root, [], shots)
+            self.assertEqual(commands, ['unpause nomsg', 'sv_cheats 1', 'noclip', 'noclip'])
             self.assertEqual(len(shots), int(capture_ok))
             self.assertIn('::ARES_ViewToken = ""', scripts[-1])
             self.assertEqual(sum('thread ARES_HoldView' in s for s in scripts), 1)

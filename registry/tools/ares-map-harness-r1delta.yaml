@@ -6,7 +6,7 @@ targets: [r1]
 categories: [testing, runtime]
 capabilities: [runtime-testing, collision-testing, physics-testing, map-testing, screenshots]
 formats:
-  inputs: [bsp, json]
+  inputs: [bsp, json, vmt, vtf]
   outputs: [json, png]
 integration:
   type: local-adapter

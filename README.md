@@ -12,6 +12,20 @@ ARES is an agent-first, documentation-driven repository for discovering and orch
 - R2: Titanfall 2 / Northstar
 - R5: Apex Legends / R5Reloaded
 
+### TF1 / R1Delta and TFO compatibility
+
+MRVN-Radiant currently uses one BSP v29 compiler target for both games:
+`remap -game titanfallonline`. ARES tests the runtimes separately. R1Delta needs
+an intermission camera, has a smaller coordinate limit, and mounts different
+content; a successful TFO run does not establish R1Delta compatibility.
+
+Paired collision and rigid-prop support samples pass. One freshly compiled TFO
+water room renders underwater geometry/fog; R1Delta water surface rendering
+remains open. R1 capture cameras now use noclip after normal physics probes to
+prevent gravity drift. Complete lighting, collision, buoyancy, asset packaging,
+gameplay/navigation and human release acceptance are still required. See the
+[TF1/TFO compatibility log](docs/tf1-tfo-compatibility.md) for evidence and gaps.
+
 ## Principles
 
 1. One source of truth: upstream repositories own implementation details.

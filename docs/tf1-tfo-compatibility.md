@@ -32,7 +32,7 @@ pose checks. A separate R1Delta sequential run passed.
 An eight-crate TFO run intentionally retained two coarse box-bottom failures.
 Both affected crates had rolled onto their sides. Their visual bounds extend
 about 1.2 units below the patch plane, but their actual PHY bottoms sit
-0.36â€“0.44 units above the intended surfaces. All eight PHY support checks pass.
+0.36ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“0.44 units above the intended surfaces. All eight PHY support checks pass.
 Do not widen the original bounds expectations or rewrite those raw reports.
 The earlier uninstrumented crate result cannot be diagnosed retrospectively.
 
@@ -93,3 +93,43 @@ Paired water and general visual acceptance remain open. No assets are committed.
 
 155 format tests, 68 adapter tests and registry validation pass. An initial
 full adapter run hit a Northstar local connection abort; a full rerun passed.
+
+## R1 water controls and capture follow-up (15 November)
+
+Explicit material staging is now available in ARES R1Delta with
+`--material-files DIR`: only a local materials/ tree of VMT/VTF files is admitted,
+with linked paths and other file types rejected before staging. Owned-addon
+cleanup removes these dependencies with the map. This is explicit staging,
+not automatic dependency discovery or conversion; no game assets are committed.
+
+A local Angel City VPK control supplied both water VMTs, the normal/flow/noise
+textures and HDR cubemap. The two VMTs are byte-identical to the TFO copies.
+Supplying these files did not repair the missing R1 water surface/black upper
+underwater view. Separate above-only surface and translucent shader controls
+also failed to repair rendering. These negative controls do not prove material
+loading or general renderer parity; retain the unresolved failure.
+
+Camera drift is now addressed: the fresh local R1 game enables cheats and
+uses noclip only for capture, after normal ray/hull/drop checks. It toggles
+noclip off in cleanup, including capture errors. Three native origins now
+match requests exactly (eye z=252, 76, 76), without loosening the one-unit check.
+The raw earlier drift failures remain. Capture success is not visual success:
+reviewed water screenshots still show the surface/upper-view problem.
+
+Local reports under MRVN `.local/respawn/phase2-water/`:
+`r1-material-control`, `r1-toponly-complete`, `r1-cheat-camera`, `r1-translucent`.
+The first above-only control attempts lacked the spawn sidecar; they are setup
+failures, not renderer evidence. The complete control includes it.
+
+MRVN now provides `tools/respawn/prepare_tf1_water.py` to reproduce the original
+rectangular room, explicit reverse-facing underside, wet/dry cell checks,
+shared rays/views and compiler/BSP hashes. It emits the spawn sidecar alongside
+the BSP; both must travel together. Fresh generation/static checks and all 232
+MRVN tool tests pass; all 70 ARES adapter tests and registry validation pass.
+Both READMEs now list TF1/R1Delta with the shared TFO v29 compiler target while
+keeping runtime acceptance separate. Full Phase 2 compatibility remains open.
+
+The normal ARES CLI also passes on the fresh generated BSP (no wrapper or BSP
+patches): `.local/respawn/phase2-water-repro/r1-native/report.json` records both
+rays at z=0.03125 and all three exact camera origins with no errors. All three
+screenshots were reviewed; the water surface/upper-view failure persists.

@@ -138,7 +138,28 @@ def model_files(source, models):
     return found
 
 
-def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=None):
+def material_files(source):
+    """Stage an explicit materials-only tree; never admit scripts or linked files."""
+    source = resolve_dir(source, 'material files')
+    root = source / 'materials'
+    if not root.is_dir() or linked(root):
+        raise ValueError('material files must contain an unlinked materials/ directory')
+    found = []
+    for folder, directories, files in os.walk(root, followlinks=False):
+        parent = Path(folder)
+        if any(linked(parent / name) for name in directories + files):
+            raise ValueError('linked material paths are not supported')
+        for name in sorted(files):
+            path = parent / name
+            if path.suffix.lower() not in {'.vmt', '.vtf'}:
+                raise ValueError(f'unsupported material file: {path.name}')
+            found.append((path, path.relative_to(source)))
+    if not found:
+        raise ValueError('material files tree is empty')
+    return sorted(found)
+
+
+def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=None, material_source=None):
     """Stage an owned addon with the compiled map (maps=None: a retail map) and,
     when models is not None, a level-init precache script for drop models.
 
@@ -168,9 +189,11 @@ def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=No
     if not re.fullmatch(r'[a-f0-9]{32}', run_id):
         raise ValueError('invalid run ID')
     session = {'run_id': run_id, 'app': str(app), 'game': str(game), 'r1': str(r1), 'map': map_name, 'addon': None}
-    if maps is None and models is None:
+    if maps is None and models is None and material_source is None:
         return session
     staged = model_files(model_source, set(models or ()) | {DEFAULT_MODEL}) if model_source and models is not None else []
+    if material_source is not None:
+        staged += material_files(material_source)
     source = None
     if maps is not None:
         maps = resolve_dir(maps, 'map build')
@@ -425,20 +448,30 @@ def run_checks(control, checks, pid, output, events, screenshots):
         control.squirrel('CloseAllMenus()', context='ui')
         control.console('unpause nomsg')
         time.sleep(1)
-    for i, v in enumerate(checks['views']):
-        token = uuid.uuid4().hex
-        try:
-            control.squirrel(held_view_script(v, token))
-            time.sleep(2)
-            events += control.squirrel(f'local p = GetPlayerArray()[0]; printl( "[ARES] VIEW {i} origin=" + '
-                                       'p.GetOrigin() + " eye=" + p.EyePosition() )')
-            path = output / f'view_{i}.png'
-            if not capture_window(pid, path):
-                raise RuntimeError(f'VIEW {i}: screenshot capture failed')
-            screenshots.append(str(path))
-        finally:
-            control.squirrel(f'if ( "ARES_ViewToken" in getroottable() && ::ARES_ViewToken == "{token}" ) '
-                             '::ARES_ViewToken = ""')
+    if not checks['views']:
+        return
+    # This adapter launches a fresh local game. Only the capture phase uses
+    # noclip; all collision/drop probes above ran with normal movement/physics.
+    # Per-frame SetOrigin alone can drift several units between server ticks.
+    control.console('sv_cheats 1')
+    control.console('noclip')
+    try:
+        for i, v in enumerate(checks['views']):
+            token = uuid.uuid4().hex
+            try:
+                control.squirrel(held_view_script(v, token))
+                time.sleep(2)
+                events += control.squirrel(f'local p = GetPlayerArray()[0]; printl( "[ARES] VIEW {i} origin=" + '
+                                           'p.GetOrigin() + " eye=" + p.EyePosition() )')
+                path = output / f'view_{i}.png'
+                if not capture_window(pid, path):
+                    raise RuntimeError(f'VIEW {i}: screenshot capture failed')
+                screenshots.append(str(path))
+            finally:
+                control.squirrel(f'if ( "ARES_ViewToken" in getroottable() && ::ARES_ViewToken == "{token}" ) '
+                                 '::ARES_ViewToken = ""')
+    finally:
+        control.console('noclip')
 
 
 def free_port():
@@ -539,6 +572,8 @@ def main(argv=None):
     p.add_argument('--model-files', type=Path,
                    help="Loose model tree (e.g. Titanfall Online's assets_dump) to stage drop models from; "
                         'needed for drops on compiled maps')
+    p.add_argument('--material-files', type=Path,
+                   help='Explicit tree containing materials/*.vmt and *.vtf dependencies to stage')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--timeout', type=int, default=300, help='Seconds to start, load and spawn')
     p.add_argument('--attempts', type=int, default=3)
@@ -548,7 +583,8 @@ def main(argv=None):
     checks = validate_checks(json.loads(args.checks.read_text()) if args.checks else {})
     args.output.mkdir(parents=True, exist_ok=True)
     session = prepare(find_app(args.r1delta), find_game(args.game), args.maps, args.map,
-                      checks['drop_models'] if checks['drops'] else None, model_source=args.model_files)
+                      checks['drop_models'] if checks['drops'] else None, model_source=args.model_files,
+                      material_source=args.material_files)
     try:
         for number in range(1, args.attempts + 1):
             report = attempt(session, checks, args.output, args.timeout)

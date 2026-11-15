@@ -44,6 +44,11 @@ Omit `--maps` to test a retail map. `--game` defaults to R1Delta's registry
   `--model-files DIR`. A distributed TF1 map must ship the models it uses.
   Small models such as `crate.mdl` are made client-side, so they never spawn
   from the harness.
+- **Material dependencies.** `--material-files DIR` stages an explicit loose
+  tree containing `materials/**/*.vmt` and `materials/**/*.vtf` in the owned
+  addon. Supply the material's complete texture, cubemap and bottom-material
+  dependencies. Linked paths, empty trees and other file types are rejected.
+  This stages supplied files; it does not discover or convert dependencies.
 - **Paused server.** On maps without a match intro, the loadout menu pauses
   the server and physics stops. The harness sends `unpause nomsg` once the
   player exists.
@@ -68,4 +73,9 @@ position. Each view must record one finite pose within one unit of the requested
 player origin and produce a successful screenshot. TFO requires a capture from
 this launch; pre-existing PNGs do not count. R1Delta holds use an ownership token,
 a 60-second bound and cancellation after capture, including capture failures.
+The freshly launched local R1 game enables `sv_cheats` and toggles noclip for
+the capture phase, then toggles it off in cleanup. Ray/hull and prop-drop checks
+run before this phase with normal physics. Noclip prevents between-tick gravity
+drift that per-frame SetOrigin alone did not eliminate. The game exits after
+the run; this adapter does not attach to an existing player session.
 Inspect every screenshot: a passing pose/capture check does not prove rendering.
