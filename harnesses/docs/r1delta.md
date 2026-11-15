@@ -60,3 +60,12 @@ it under its original index, then destroys it before spawning the next body.
 Retail Angel City (16 traces, 16 barrels) passed, with every barrel resting on
 its traced floor. On a compiled closed-solid bevel map, all 5,148 traces and
 hull sweeps matched TFO within 0.001 unit.
+
+## View capture validation
+
+Requested views are held against gravity during capture and log origin and eye
+position. Each view must record one finite pose within one unit of the requested
+player origin and produce a successful screenshot. TFO requires a capture from
+this launch; pre-existing PNGs do not count. R1Delta holds use an ownership token,
+a 60-second bound and cancellation after capture, including capture failures.
+Inspect every screenshot: a passing pose/capture check does not prove rendering.

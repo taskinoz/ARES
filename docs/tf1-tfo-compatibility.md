@@ -75,3 +75,21 @@ account-bearing game logs are kept local.
 Passing the current probes does not close these gates. New failures should be
 retained with the runtime version, shared checks, map/compiler fingerprints and
 the raw events that identify the failure.
+
+## Held-camera and water follow-up (15 November)
+
+Views now remain under a bounded pose hold during capture and record player
+origin/eye position. Missing captures, missing/nonfinite poses and origin drift
+over one unit fail. TFO only accepts captures successfully made this launch,
+so stale PNGs cannot satisfy checks. R1 holds are cancelled on success/failure.
+
+MRVN's new water draw/shader fixes pass 60 compiler cases. A fresh BSP renders
+underwater geometry/fog in TFO Core 135 with all three held positions passing.
+The same BSP in R1Delta 3.0.5 renders floor/fog underwater but has a black upper
+view and missing surface; the above-water camera also drifted 2.606 units and
+correctly failed. Material dependencies/renderer differences need isolation.
+Reports are local under MRVN `.local/respawn/phase2-water/{tfo-typed,r1-typed}`.
+Paired water and general visual acceptance remain open. No assets are committed.
+
+155 format tests, 68 adapter tests and registry validation pass. An initial
+full adapter run hit a Northstar local connection abort; a full rerun passed.

@@ -81,3 +81,12 @@ every contact trajectory.
 - **Screenshots.** The engine's `screenshot` writes nothing and `PrintWindow`
   returns black, so the screen is read. Keep the window visible, and answer any
   Windows Firewall prompt for `TFO.exe` first.
+
+## View capture validation
+
+Requested views are held against gravity during capture and log origin and eye
+position. Each view must record one finite pose within one unit of the requested
+player origin and produce a successful screenshot. TFO requires a capture from
+this launch; pre-existing PNGs do not count. R1Delta holds use an ownership token,
+a 60-second bound and cancellation after capture, including capture failures.
+Inspect every screenshot: a passing pose/capture check does not prove rendering.

@@ -8,7 +8,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from tfo_harness import SCRIPT, MOD, main, CrashHandlers, game_crashed, target_map_loaded, target_map_started, write_mod, expectation_errors, height_expectations
+from tfo_harness import SCRIPT, MOD, main, CrashHandlers, game_crashed, target_map_loaded, target_map_started, write_mod, expectation_errors, height_expectations, screenshot_results, view_errors
 
 
 @contextmanager
@@ -41,6 +41,27 @@ def close_process(process):
 
 
 class TfoHarnessTests(unittest.TestCase):
+    def test_old_output_images_cannot_satisfy_a_failed_capture(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'view0.png').write_bytes(b'old')
+            (root / 'view99.png').write_bytes(b'old')
+            shots, errors = screenshot_results(root, 2, set())
+            self.assertEqual(shots, [])
+            self.assertEqual(len(errors), 2)
+            shots, errors = screenshot_results(root, 2, {'0', '1'})
+            self.assertEqual([p.name for p in shots], ['view0.png'])
+            self.assertEqual(len(errors), 1)  # view1 has no file despite a claimed capture
+            self.assertEqual(screenshot_results(root, 0, set()), ([], []))
+
+    def test_missing_or_drifting_view_pose_cannot_pass(self):
+        view = [[0, 0, 128, 0, 90]]
+        valid = 'VIEW 0 origin=(vector : (0, 0, 127.6)) eye=(vector : (0, 0, 187.6))'
+        self.assertEqual(view_errors([valid], view), [])
+        for events in ([], ['VIEW 0'], [valid, valid], [valid.replace('127.6', '0.0')],
+                       [valid.replace('127.6', 'nan')]):
+            self.assertTrue(view_errors(events, view))
+
     def test_failed_launch_restores_enabled_mod_bytes(self):
         with process_directory() as folder:
             root = Path(folder)

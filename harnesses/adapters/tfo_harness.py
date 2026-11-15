@@ -40,7 +40,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from physics_observations import observations
+from physics_observations import observations, vector as parse_vector
 
 MOD = 'ARES.TF1Harness'
 
@@ -93,6 +93,32 @@ def expectation_errors(events, expect):
             values = []
         if not values or any(not math.isfinite(value) or not low <= value <= high for value in values):
             errors.append(f'{kind} {index}: expected Z in [{low}, {high}], observed {matches or "no result"}')
+    return errors
+
+
+def screenshot_results(output, view_count, captured):
+    """Only successful captures from this launch count; ignore stale output PNGs."""
+    shots = [Path(output) / f'view{i}.png' for i in range(view_count)
+             if str(i) in captured and (Path(output) / f'view{i}.png').is_file()]
+    names = {shot.name for shot in shots}
+    errors = [f'VIEW {i}: no screenshot captured in this launch' for i in range(view_count)
+              if f'view{i}.png' not in names]
+    return shots, errors
+
+
+def view_errors(events, views):
+    errors = []
+    for index, view in enumerate(views):
+        matches = [event for event in events if re.match(rf'^VIEW {index}(?:\s|$)', event)]
+        if len(matches) != 1:
+            errors.append(f'VIEW {index}: expected one recorded pose, found {len(matches)}')
+            continue
+        try:
+            origin = parse_vector(matches[0], 'origin')
+            if math.dist(origin, view[:3]) > 1.0:
+                errors.append(f'VIEW {index}: player origin drifted from the requested position: {origin}')
+        except ValueError as exc:
+            errors.append(f'VIEW {index}: {exc}')
     return errors
 
 
@@ -272,12 +298,22 @@ function ARES_Run( player )
 	}
 	foreach ( i, v in ARES_Views )
 	{
-		player.SetOrigin( Vector( v[0], v[1], v[2] ) )
-		player.SetAngles( Vector( v[3], v[4], 0 ) )
-		player.SetVelocity( Vector( 0, 0, 0 ) )
-		wait 2
-		ARES_Log( "VIEW " + i )  // the harness captures the game window now
-		wait 2
+		local announceAt = Time() + 2.0
+		local endAt = announceAt + 2.0
+		local announced = false
+		while ( Time() < endAt )
+		{
+			// Hold each frame: gravity must not move an above-water camera below it.
+			player.SetOrigin( Vector( v[0], v[1], v[2] ) )
+			player.SetAngles( Vector( v[3], v[4], 0 ) )
+			player.SetVelocity( Vector( 0, 0, 0 ) )
+			if ( !announced && Time() >= announceAt )
+			{
+				ARES_Log( "VIEW " + i + " origin=" + player.GetOrigin() + " eye=" + player.EyePosition() )
+				announced = true
+			}
+			wait 0
+		}
 	}
 	ARES_Log( "DONE" )
 	wait 2
@@ -394,6 +430,8 @@ def main():
     p.add_argument('--attempts', type=int, default=3)
     p.add_argument('--enable', action='append', default=[], help='Also enable this installed mod, e.g. Titanfall1.Content.Client')
     args = p.parse_args()
+    if args.attempts < 1 or args.timeout < 1:
+        p.error('--attempts and --timeout must be positive')
     if not re.fullmatch(r'[A-Za-z0-9_]+', args.map):
         raise SystemExit('invalid map name')
     checks = json.loads(args.checks.read_text()) if args.checks else {}
@@ -420,6 +458,7 @@ def main():
             deadline = time.time() + args.timeout
             text = ''
             captured = set()
+            seen_views = set()
             try:
                 while time.time() < deadline and process.poll() is None:
                     # Capture every time: TFO can launch a replacement handler.
@@ -428,10 +467,11 @@ def main():
                     if log.exists() and log.stat().st_mtime_ns >= launch_time:
                         text = log.read_text('utf-8', 'replace')
                     for view in re.findall(r'\[ARES\] VIEW (\d+)', text):
-                        if view not in captured:
-                            captured.add(view)
+                        if view not in seen_views:
+                            seen_views.add(view)
                             args.output.mkdir(parents=True, exist_ok=True)
-                            capture_window(process.pid, args.output/f'view{view}.png')
+                            if capture_window(process.pid, args.output/f'view{view}.png'):
+                                captured.add(view)
                     if '[ARES] DONE' in text or 'A CRASH HAS BEEN CAPTURED' in text:
                         time.sleep(4)
                         break
@@ -456,10 +496,12 @@ def main():
         enabled_path.write_bytes(enabled_backup)
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output/'tforevive.log').write_text(text, encoding='utf-8')
-    new_shots = sorted(args.output.glob('view*.png'))
+    new_shots, shot_errors = screenshot_results(args.output, len(checks.get('views', [])), captured)
     events = [line.split('[ARES] ', 1)[1] for line in text.splitlines() if '[ARES] ' in line]
     errors = [line for line in text.splitlines() if 'SCRIPT ERROR' in line or 'CRASH HAS BEEN CAPTURED' in line]
     errors.extend(expectation_errors(events, checks.get('expect', {})))
+    errors.extend(shot_errors)
+    errors.extend(view_errors(events, checks.get('views', [])))
     if exit_code not in (None, 0):
         errors.append(f'TFO exited abnormally with code {exit_code}')
     report = {'map': args.map, 'events': events, 'errors': errors, 'screenshots': [s.name for s in new_shots],

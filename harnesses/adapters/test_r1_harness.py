@@ -153,6 +153,27 @@ class R1HarnessTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             r1_harness.validate_checks({'drop_sequential': 'true'})
 
+    def test_view_hold_is_cancelled_on_success_and_capture_failure(self):
+        for capture_ok in (True, False):
+            scripts = []
+            class FakeControl:
+                def squirrel(self, script, context='server'):
+                    scripts.append(script)
+                    return ['VIEW 0 origin=(vector : (0, 0, 128))'] if 'printl' in script else []
+                def console(self, command):
+                    pass
+            checks = r1_harness.validate_checks({'views': [[0, 0, 128, 0, 90]]})
+            shots = []
+            with patch('r1_harness.time.sleep'), patch('r1_harness.capture_window', return_value=capture_ok):
+                if capture_ok:
+                    r1_harness.run_checks(FakeControl(), checks, 0, self.root, [], shots)
+                else:
+                    with self.assertRaisesRegex(RuntimeError, 'screenshot capture failed'):
+                        r1_harness.run_checks(FakeControl(), checks, 0, self.root, [], shots)
+            self.assertEqual(len(shots), int(capture_ok))
+            self.assertIn('::ARES_ViewToken = ""', scripts[-1])
+            self.assertEqual(sum('thread ARES_HoldView' in s for s in scripts), 1)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -34,7 +34,7 @@ import urllib.request
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from tfo_harness import capture_window, expectation_errors, height_expectations  # noqa: E402
+from tfo_harness import capture_window, expectation_errors, height_expectations, view_errors  # noqa: E402
 
 ADDON_PREFIX = 'ARES.TF1Harness.'
 OWNER = '.ares-harness-owner.json'
@@ -352,6 +352,24 @@ def trace_script(rows, first, hull):
     return '\n'.join(lines)
 
 
+def held_view_script(view, token):
+    if not re.fullmatch(r'[a-f0-9]{32}', token):
+        raise ValueError('invalid view ownership token')
+    return '''::ARES_HoldView <- function( p, origin, angles, token ) {
+        p.EndSignal( "OnDestroy" )
+        local deadline = Time() + 60.0
+        while ( ::ARES_ViewToken == token && Time() < deadline ) {
+            p.SetOrigin( origin ); p.SetAngles( angles ); p.SetVelocity( Vector( 0, 0, 0 ) )
+            wait 0
+        }
+    }
+    ''' + f'''if ( !( "ARES_ViewToken" in getroottable() ) || ::ARES_ViewToken != "{token}" ) {{
+        ::ARES_ViewToken <- "{token}"
+        thread ARES_HoldView( GetPlayerArray()[0], {vec(view[:3])},
+                             Vector( {float(view[3])}, {float(view[4])}, 0 ), "{token}" )
+    }}'''
+
+
 def run_checks(control, checks, pid, output, events, screenshots):
     for key, hull in (('traces', False), ('hulls', True)):
         rows = checks[key]
@@ -408,13 +426,19 @@ def run_checks(control, checks, pid, output, events, screenshots):
         control.console('unpause nomsg')
         time.sleep(1)
     for i, v in enumerate(checks['views']):
-        control.squirrel(f'local p = GetPlayerArray()[0]; p.SetOrigin( {vec(v[:3])} ); '
-                         f'p.SetAngles( Vector( {float(v[3])}, {float(v[4])}, 0 ) ); p.SetVelocity( Vector( 0, 0, 0 ) )')
-        time.sleep(2)
-        path = output / f'view_{i}.png'
-        if capture_window(pid, path):
+        token = uuid.uuid4().hex
+        try:
+            control.squirrel(held_view_script(v, token))
+            time.sleep(2)
+            events += control.squirrel(f'local p = GetPlayerArray()[0]; printl( "[ARES] VIEW {i} origin=" + '
+                                       'p.GetOrigin() + " eye=" + p.EyePosition() )')
+            path = output / f'view_{i}.png'
+            if not capture_window(pid, path):
+                raise RuntimeError(f'VIEW {i}: screenshot capture failed')
             screenshots.append(str(path))
-        events.append(f'VIEW {i}')
+        finally:
+            control.squirrel(f'if ( "ARES_ViewToken" in getroottable() && ::ARES_ViewToken == "{token}" ) '
+                             '::ARES_ViewToken = ""')
 
 
 def free_port():
@@ -501,6 +525,7 @@ def attempt(session, checks, output, timeout):
         stop(process, control)
     if report['finished']:
         report['errors'] += expectation_errors(report['events'], checks['expect'])
+        report['errors'] += view_errors(report['events'], checks['views'])
     return report
 
 
