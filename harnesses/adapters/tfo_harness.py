@@ -113,8 +113,11 @@ def view_errors(events, views):
         if len(matches) != 1:
             errors.append(f'VIEW {index}: expected one recorded pose, found {len(matches)}')
             continue
+        if not re.search(r'\balive=true(?:\s|$)', matches[0]):
+            errors.append(f'VIEW {index}: player is dead or alive state was not recorded')
         try:
             origin = parse_vector(matches[0], 'origin')
+            parse_vector(matches[0], 'eye')
             if math.dist(origin, view[:3]) > 1.0:
                 errors.append(f'VIEW {index}: player origin drifted from the requested position: {origin}')
         except ValueError as exc:
@@ -309,7 +312,7 @@ function ARES_Run( player )
 			player.SetVelocity( Vector( 0, 0, 0 ) )
 			if ( !announced && Time() >= announceAt )
 			{
-				ARES_Log( "VIEW " + i + " origin=" + player.GetOrigin() + " eye=" + player.EyePosition() )
+				ARES_Log( "VIEW " + i + " origin=" + player.GetOrigin() + " eye=" + player.EyePosition() + " alive=" + IsAlive( player ) )
 				announced = true
 			}
 			wait 0

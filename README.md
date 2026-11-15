@@ -26,6 +26,12 @@ prevent gravity drift. Complete lighting, collision, buoyancy, asset packaging,
 gameplay/navigation and human release acceptance are still required. See the
 [TF1/TFO compatibility log](docs/tf1-tfo-compatibility.md) for evidence and gaps.
 
+Current compiler follow-up corrects v29 mesh vertex-type and material-sort span
+metadata against five retail maps. R1 uniquely named UnlitGeneric controls draw
+both water surfaces from staged files, while native Water materials on the same
+BSP still fail visually. This isolates the staging/visibility control without
+claiming Water shader compatibility.
+
 ## Principles
 
 1. One source of truth: upstream repositories own implementation details.

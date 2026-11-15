@@ -90,3 +90,7 @@ player origin and produce a successful screenshot. TFO requires a capture from
 this launch; pre-existing PNGs do not count. R1Delta holds use an ownership token,
 a 60-second bound and cancellation after capture, including capture failures.
 Inspect every screenshot: a passing pose/capture check does not prove rendering.
+New view markers include `alive=true` and finite eye coordinates; missing or
+false alive state fails validation even when the player origin matches. This
+rejects poses recorded after death; screenshot/pose frame synchronization still
+requires visual review.

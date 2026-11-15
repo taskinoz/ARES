@@ -79,3 +79,6 @@ run before this phase with normal physics. Noclip prevents between-tick gravity
 drift that per-frame SetOrigin alone did not eliminate. The game exits after
 the run; this adapter does not attach to an existing player session.
 Inspect every screenshot: a passing pose/capture check does not prove rendering.
+New reports also require `alive=true` and finite eye coordinates for each view.
+A correct server origin can coexist with a death/spectator camera; dead players
+and older markers without an alive state fail current view validation.

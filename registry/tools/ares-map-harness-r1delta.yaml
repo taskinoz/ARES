@@ -23,8 +23,9 @@ upstream:
   license: GPL-2.0-or-later
 verification:
   status: partial
-  last_checked: "2026-11-14"
+  last_checked: "2026-11-15"
   notes:
+    - "Native compiled water-room probes record three exact camera origins and alive=true. Material staging and diagnostic unlit surfaces work; native Water surface rendering remains unresolved. Death/missing-alive captures are rejected."
     - "ARES adapter run in R1Delta 3.0.5 on an authored v29 brush/patch map: six collision probes match TFO; barrel speed/bounds and four sequential drops pass. Broader gameplay/visual parity is unverified."
 inspection:
   checked_at: "2026-11-12T12:30:00Z"

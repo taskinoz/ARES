@@ -56,8 +56,11 @@ class TfoHarnessTests(unittest.TestCase):
 
     def test_missing_or_drifting_view_pose_cannot_pass(self):
         view = [[0, 0, 128, 0, 90]]
-        valid = 'VIEW 0 origin=(vector : (0, 0, 127.6)) eye=(vector : (0, 0, 187.6))'
+        valid = 'VIEW 0 origin=(vector : (0, 0, 127.6)) eye=(vector : (0, 0, 187.6)) alive=true'
         self.assertEqual(view_errors([valid], view), [])
+        for event in (valid.replace('alive=true', 'alive=false'), valid.replace(' alive=true', ''),
+                      valid.replace('187.6', 'nan')):
+            self.assertTrue(view_errors([event], view))
         for events in ([], ['VIEW 0'], [valid, valid], [valid.replace('127.6', '0.0')],
                        [valid.replace('127.6', 'nan')]):
             self.assertTrue(view_errors(events, view))

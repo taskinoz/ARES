@@ -462,7 +462,7 @@ def run_checks(control, checks, pid, output, events, screenshots):
                 control.squirrel(held_view_script(v, token))
                 time.sleep(2)
                 events += control.squirrel(f'local p = GetPlayerArray()[0]; printl( "[ARES] VIEW {i} origin=" + '
-                                           'p.GetOrigin() + " eye=" + p.EyePosition() )')
+                                           'p.GetOrigin() + " eye=" + p.EyePosition() + " alive=" + IsAlive( p ) )')
                 path = output / f'view_{i}.png'
                 if not capture_window(pid, path):
                     raise RuntimeError(f'VIEW {i}: screenshot capture failed')
