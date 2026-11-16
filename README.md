@@ -198,3 +198,8 @@ Native atlas NPC flat-floor support also passes five samples in both runtimes.
 The shared `titans` check selects their different atlas settings names and rejects
 invalid/dead/missing samples, unsupported poses or excessive sampled motion.
 Titan piloting, combat, curved surfaces and AI navigation remain unverified.
+
+A separate local forward-input control now passes one standing flat-floor trigger
+crossing in both runtimes (one enter, one exit, 16 alive/non-crouched samples).
+This does not change the public `triggers` repositioning semantics or certify
+broader traversal, objectives, navigation or release parity.

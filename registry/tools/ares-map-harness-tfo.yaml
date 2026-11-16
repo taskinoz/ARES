@@ -25,6 +25,7 @@ verification:
   status: partial
   last_checked: "2026-11-17"
   notes:
+    - "Separate local forward-input control passes one standing flat-floor trigger crossing in each runtime, with 16 alive/non-crouched samples and one enter/exit. Public triggers still use repositioning; broader traversal and navigation remain open."
     - "Initial alive spawn pose and axis-aligned/rotated trigger enter/exit counts pass in both runtimes. Native atlas NPC flat-floor support passes five samples using target-specific settings; no piloting, combat, navigation or complete-mode parity claim. 102 adapter tests pass."
     - "Paired compiled wet/dry cardboard buoyancy sample completed. Sequential drops now honor drop_samples; position diagnostics detect motion despite zero entity velocity. Dry PHY support passes; broader buoyancy/rest acceptance remains open."
     - "ARES adapter run in TFORevive.Core 135 on an authored v29 brush/patch map: paired R1Delta rays/hulls agree; barrel speed and transformed-bounds expectations pass. Broader gameplay/visual parity is unverified."

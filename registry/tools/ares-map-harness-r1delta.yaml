@@ -25,6 +25,7 @@ verification:
   status: partial
   last_checked: "2026-11-17"
   notes:
+    - "Separate local forward-input control passes one standing flat-floor trigger crossing in each runtime, with 16 alive/non-crouched samples and one enter/exit. Public triggers still use repositioning; broader traversal and navigation remain open."
     - "Initial alive spawn pose and axis-aligned/rotated trigger enter/exit counts pass in both runtimes. Native atlas NPC flat-floor support passes five samples using target-specific settings; no piloting, combat, navigation or complete-mode parity claim. 102 adapter tests pass."
     - "One compiled wet/dry cardboard buoyancy probe completed; dry PHY support and sampled translation checks pass. Wet body keeps bobbing despite zero entity velocity; broader buoyancy/rest acceptance remains open."
     - "Native compiled water-room probes record three exact camera origins and alive=true. Material staging and diagnostic unlit surfaces work; native Water surface rendering is restored by the shader VPK pair; underwater horizon artifacts remain, including a retail reference. Death/missing-alive captures are rejected."
