@@ -130,3 +130,9 @@ streams, mesh-local shadow indices and cumulative triangle ranges, texture name
 string offsets/references, and PHYSICS_COLLIDE model/solid/keydata framing.
 These are structural checks; IVP trees, fluid semantics, CSM object namespaces
 and runtime lighting/physics behavior require separate validation.
+
+The v29 record validator also checks embedded entity KeyValues and declared
+`ENTITIES01` partition syntax through `entity_text.py`. It honors the default
+external partition table and rejects unsafe/case-alias names, missing or linked
+files, malformed blocks and data after NUL. Counts establish syntax coverage,
+not gameplay correctness.

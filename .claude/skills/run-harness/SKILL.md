@@ -55,7 +55,10 @@ Start small: one downward trace where you know the floor height, plus one view.
 ```
 
 Northstar also accepts `spawn_probe`, `mode_check`, `settle`, `console`
-and `thirdperson`. TFO/R1Delta accept `drops`, `drop_models` and `drop_wait`.
+and `thirdperson`. TFO/R1Delta accept `drops`, `drop_models`, `drop_wait`, initial `spawn_probe`
+and authored `triggers` output checks. See their guides for the v29 schemas;
+Northstar's `spawn_probe` schema differs. Trigger checks use controlled repositioning,
+not normal traversal.
 
 ## 4. Run and read the result
 

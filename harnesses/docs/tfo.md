@@ -133,3 +133,37 @@ sidecar to exist locally, be nonempty and not be linked. Missing spawn sidecars
 can otherwise leave a map on its loading screen. This is a packaging preflight,
 not entity-syntax or gameplay validation. Other BSP versions and external
 partition-table overrides are outside this check.
+
+
+## Authored trigger output probes
+
+Both v29 adapters accept `triggers` in checks.json:
+
+```json
+{"triggers":[{"targetname":"ares_trigger",
+ "points":[[-300,0,1],[0,0,1],[300,0,1]],
+ "counts":[[0,0],[1,0],[1,1]],"wait":1,"tolerance":16}]}
+```
+
+Each point resets the living player's origin/velocity, waits (0.1..5 seconds),
+then samples cumulative `OnStartTouch` and `OnEndTouch` counts. The adapter
+requires one result per point, the exact counts, an alive player and a finite
+origin within `tolerance` units per axis (default 16; allowed 0.01..64).
+At most 16 uniquely named triggers and 2..16 points per trigger are allowed;
+coordinates stay within ?16384. Start outside the volume, then enter and leave.
+Avoid overlapping triggers and other players: callbacks count player touches.
+A missing target, missing/duplicate result, wrong counts, death or wrong pose
+fails the run. Use a unique targetname for each authored trigger.
+
+This is controlled repositioning, not normal walking, objective/mode validation
+or network testing. MRVN-Radiant's `prepare_tf1_triggers.py` creates original
+axis-aligned and rotated fixtures without game assets.
+
+
+`spawn_probe` checks the actual initial spawn before any trigger/drop/view
+repositioning. For example, `"spawn_probe":{"origins":[[-400,0,0]],"tolerance":2}`
+requires exactly one result, an alive player on team 2 or 3 and a finite origin
+within the tolerance per axis of at least one allowed position. Optional `team`
+requires 2 or 3 specifically. Default tolerance is 4 (allowed 0.01..64); up to
+64 allowed origins stay within ?16384. This samples one initial spawn, not
+respawn choice, all teams, mode selection, objective entities or multiplayer.

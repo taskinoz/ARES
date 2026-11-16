@@ -185,3 +185,11 @@ structural checks. A fresh alive retail R1 underwater reference also has a
 horizon artifact, so the band is not unique to compiled custom maps. Full
 lighting/physics, dependencies, gameplay/navigation and release parity remain
 open; see the TF1/TFO compatibility log for the bounded evidence.
+
+
+The Phase 2 v29 entity reader now checks `ENTITIES01` syntax and honors default
+external partition tables before native staging. Shared `triggers` probes verify
+alive player poses and exact cumulative touch output counts; authored
+axis-aligned and rotated enter/exit sequences plus the initial spawn pose pass
+in both R1Delta and TFO. These controlled
+repositioning probes do not certify normal traversal, objectives or navigation.

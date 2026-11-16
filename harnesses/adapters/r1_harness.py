@@ -35,6 +35,8 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tfo_harness import capture_window, collect_internal_capture, expectation_errors, height_expectations, view_errors, validate_masks, TRACE_MASKS  # noqa: E402
+from spawn_checks import validate_spawn, spawn_script, spawn_errors
+from trigger_checks import validate_triggers, trigger_errors, trigger_script
 from tf1_sidecars import require_entity_sidecars  # noqa: E402
 
 ADDON_PREFIX = 'ARES.TF1Harness.'
@@ -80,6 +82,8 @@ def validate_checks(checks):
               for key, width in (('traces', 6), ('hulls', 12), ('views', 5), ('drops', 3))}
     if type(checks.get('engine_screenshots', True)) is not bool:
         raise ValueError('engine_screenshots must be a boolean')
+    result['spawn_probe'] = validate_spawn(checks.get('spawn_probe'))
+    result['triggers'] = validate_triggers(checks.get('triggers', []))
     result['engine_screenshots'] = checks.get('engine_screenshots', True)
     if any(row[6 + i] > row[9 + i] for row in result['hulls'] for i in range(3)):
         raise ValueError('hull mins must not exceed maxs')
@@ -402,6 +406,23 @@ def held_view_script(view, token):
     }}'''
 
 
+def run_trigger_checks(control, rows, events):
+    if not rows:
+        return
+    token = uuid.uuid4().hex
+    # MCP may execute a timed-out call before its retry: guard setup and thread.
+    control.squirrel(f'if (!("ARES_TriggerToken" in getroottable()) || ::ARES_TriggerToken != "{token}") {{' +
+                     trigger_script(rows) + f'::ARES_TriggerToken <- "{token}"; thread ARES_RunTriggers(GetPlayerArray()[0]);' + '}')
+    deadline = time.monotonic() + 30 + sum(len(r['points']) * r.get('wait', 1) for r in rows)
+    while time.monotonic() < deadline:
+        result = control.squirrel('if (::ARES_TriggerDone) { foreach(e in ::ARES_TriggerEvents) printl("[ARES] " + e); printl("[ARES] TRIGGERS_DONE"); }')
+        if 'TRIGGERS_DONE' in result:
+            events.extend(e for e in result if e != 'TRIGGERS_DONE')
+            return
+        time.sleep(.5)
+    raise TimeoutError('trigger probes did not finish')
+
+
 def run_checks(control, checks, pid, output, events, screenshots, game=None, capture_methods=None):
     for key, hull in (('traces', False), ('hulls', True)):
         rows = checks[key]
@@ -568,6 +589,9 @@ def attempt(session, checks, output, timeout):
         time.sleep(3)
         report['events'].append('BEGIN')
         report['capture_methods'] = {}
+        if checks.get('spawn_probe') is not None:
+            report['events'].extend(control.squirrel('local player=GetPlayerArray()[0];' + spawn_script(checks['spawn_probe'])))
+        run_trigger_checks(control, checks.get('triggers', []), report['events'])
         run_checks(control, checks, process.pid, output, report['events'], report['screenshots'],
                    Path(session['game']), report['capture_methods'])
         report['events'].append('DONE')
@@ -582,6 +606,8 @@ def attempt(session, checks, output, timeout):
     finally:
         stop(process, control)
     if report['finished']:
+        report['errors'] += spawn_errors(report['events'], checks.get('spawn_probe'))
+        report['errors'] += trigger_errors(report['events'], checks.get('triggers', []))
         report['errors'] += expectation_errors(report['events'], checks['expect'])
         report['errors'] += view_errors(report['events'], checks['views'])
     return report
