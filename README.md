@@ -165,3 +165,9 @@ came from [taskinoz/MRVN-Radiant](https://github.com/taskinoz/MRVN-Radiant).
 `ares/` and `tests/` are MIT; their provenance is in `ares/SOURCES.json`.
 ARES was written with AI; see [AI.md](AI.md) for what was generated and for the
 human-built projects it depends on.
+
+Recent Phase 2 checks add paired transformed-brush probes and 32 TFO
+contents-mask inclusion/exclusion probes. Full native map VPK resources or
+rendering retail water first restore custom R1 water surfaces, but an underwater
+black band and standalone dependency packaging remain unresolved. See the
+compatibility log for retained failures and precise scope.

@@ -34,7 +34,7 @@ import urllib.request
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from tfo_harness import capture_window, expectation_errors, height_expectations, view_errors  # noqa: E402
+from tfo_harness import capture_window, collect_internal_capture, expectation_errors, height_expectations, view_errors, validate_masks, TRACE_MASKS  # noqa: E402
 
 ADDON_PREFIX = 'ARES.TF1Harness.'
 OWNER = '.ares-harness-owner.json'
@@ -77,8 +77,13 @@ def validate_checks(checks):
         raise ValueError('checks must be a JSON object')
     result = {key: finite_rows(checks.get(key, []), width, key)
               for key, width in (('traces', 6), ('hulls', 12), ('views', 5), ('drops', 3))}
+    if type(checks.get('engine_screenshots', False)) is not bool:
+        raise ValueError('engine_screenshots must be a boolean')
+    result['engine_screenshots'] = checks.get('engine_screenshots', False)
     if any(row[6 + i] > row[9 + i] for row in result['hulls'] for i in range(3)):
         raise ValueError('hull mins must not exceed maxs')
+    for key, rows in (('trace_masks', 'traces'), ('hull_masks', 'hulls')):
+        result[key] = validate_masks(checks.get(key, []), len(result[rows]), key)
     models = checks.get('drop_models', [])
     if (not isinstance(models, list) or (models and len(models) != len(result['drops'])) or
             any(not isinstance(m, str) or not MODEL_NAME.fullmatch(m) or '..' in m.split('/') for m in models)):
@@ -363,13 +368,15 @@ def vec(values):
     return 'Vector( ' + ', '.join(f'{float(v):.4f}' for v in values) + ' )'
 
 
-def trace_script(rows, first, hull):
+def trace_script(rows, first, hull, masks=None):
+    masks = validate_masks([] if masks is None else masks, len(rows), 'masks')
     lines = ['local player = GetPlayerArray().len() ? GetPlayerArray()[0] : null']
     for i, t in enumerate(rows, first):
         call = (f'TraceHull( {vec(t[:3])}, {vec(t[3:6])}, {vec(t[6:9])}, {vec(t[9:12])}, player, '
                 if hull else f'TraceLine( {vec(t[:3])}, {vec(t[3:6])}, player, ')
         kind = 'HULL' if hull else 'TRACE'
-        lines.append(f'{{ local r = {call}TRACE_MASK_PLAYERSOLID, TRACE_COLLISION_GROUP_NONE ); '
+        mask = TRACE_MASKS[masks[i - first]] if masks else 'TRACE_MASK_PLAYERSOLID'
+        lines.append(f'{{ local r = {call}{mask}, TRACE_COLLISION_GROUP_NONE ); '
                      f'printl( "[ARES] {kind} {i} fraction=" + r.fraction + " end=" + r.endPos.z + '
                      f'" solid=" + r.startSolid + " normal=" + r.surfaceNormal ) }}')
     return '\n'.join(lines)
@@ -393,11 +400,13 @@ def held_view_script(view, token):
     }}'''
 
 
-def run_checks(control, checks, pid, output, events, screenshots):
+def run_checks(control, checks, pid, output, events, screenshots, game=None, capture_methods=None):
     for key, hull in (('traces', False), ('hulls', True)):
         rows = checks[key]
         for first in range(0, len(rows), BATCH):
-            events += control.squirrel(trace_script(rows[first:first + BATCH], first, hull))
+            masks = checks.get('hull_masks' if hull else 'trace_masks', [])
+            events += control.squirrel(trace_script(rows[first:first + BATCH], first, hull,
+                                                   masks[first:first + BATCH]))
     if checks.get('drop_sequential') and checks['drops']:
         # Reuse the guarded single-batch path, retaining original event indices.
         # Each body's final observation precedes its destruction and next spawn.
@@ -405,7 +414,7 @@ def run_checks(control, checks, pid, output, events, screenshots):
             isolated = dict(checks, traces=[], hulls=[], views=[], drops=[drop], drop_sequential=False,
                             drop_models=[checks['drop_models'][index]] if checks['drop_models'] else [])
             single_events = []
-            run_checks(control, isolated, pid, output, single_events, screenshots)
+            run_checks(control, isolated, pid, output, single_events, screenshots, game, capture_methods)
             events.extend(re.sub(r'^(SPAWNED|SAMPLE|DROP) 0\b', lambda m: f'{m[1]} {index}', line)
                           for line in single_events)
             control.squirrel('foreach ( p in ::ARES_Drops ) if ( IsValid( p ) ) p.Destroy()')
@@ -464,8 +473,20 @@ def run_checks(control, checks, pid, output, events, screenshots):
                 events += control.squirrel(f'local p = GetPlayerArray()[0]; printl( "[ARES] VIEW {i} origin=" + '
                                            'p.GetOrigin() + " eye=" + p.EyePosition() + " alive=" + IsAlive( p ) )')
                 path = output / f'view_{i}.png'
-                if not capture_window(pid, path):
+                internal = False
+                if game is not None and checks.get('engine_screenshots', False):
+                    name = 'ares_' + token + '_' + str(i)
+                    requested = time.time_ns()
+                    control.console('screenshot ' + name)
+                    for _ in range(8):
+                        time.sleep(.25)
+                        if collect_internal_capture(game, name, path, requested):
+                            internal = True
+                            break
+                if not internal and not capture_window(pid, path):
                     raise RuntimeError(f'VIEW {i}: screenshot capture failed')
+                if capture_methods is not None:
+                    capture_methods[str(i)] = 'engine' if internal else 'window-fallback'
                 screenshots.append(str(path))
             finally:
                 control.squirrel(f'if ( "ARES_ViewToken" in getroottable() && ::ARES_ViewToken == "{token}" ) '
@@ -544,7 +565,9 @@ def attempt(session, checks, output, timeout):
         control.console('unpause nomsg')
         time.sleep(3)
         report['events'].append('BEGIN')
-        run_checks(control, checks, process.pid, output, report['events'], report['screenshots'])
+        report['capture_methods'] = {}
+        run_checks(control, checks, process.pid, output, report['events'], report['screenshots'],
+                   Path(session['game']), report['capture_methods'])
         report['events'].append('DONE')
         report['finished'] = True
     except Exception as error:

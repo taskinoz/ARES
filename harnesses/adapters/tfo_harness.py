@@ -39,6 +39,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 from physics_observations import observations, vector as parse_vector
 
@@ -208,6 +209,8 @@ class CrashHandlers:
 
 SCRIPT = r'''
 // ARES TF1 harness: traces and screenshots, then quit.
+::ARES_TraceMasks <- %TRACE_MASKS%
+::ARES_HullMasks <- %HULL_MASKS%
 ::ARES_Traces <- %TRACES%
 ::ARES_Hulls <- %HULLS%
 ::ARES_Views <- %VIEWS%
@@ -248,12 +251,14 @@ function ARES_Run( player )
 	ARES_Log( "BEGIN" )
 	foreach ( i, t in ARES_Traces )
 	{
-		local result = TraceLine( Vector( t[0], t[1], t[2] ), Vector( t[3], t[4], t[5] ), player, TRACE_MASK_PLAYERSOLID, TRACE_COLLISION_GROUP_NONE )
+		local mask = ARES_TraceMasks.len() ? ARES_TraceMasks[i] : TRACE_MASK_PLAYERSOLID
+		local result = TraceLine( Vector( t[0], t[1], t[2] ), Vector( t[3], t[4], t[5] ), player, mask, TRACE_COLLISION_GROUP_NONE )
 		ARES_Log( "TRACE " + i + " fraction=" + result.fraction + " end=" + result.endPos.z + " solid=" + result.startSolid + " normal=" + result.surfaceNormal )
 	}
 	foreach ( i, t in ARES_Hulls )
 	{
-		local result = TraceHull( Vector( t[0], t[1], t[2] ), Vector( t[3], t[4], t[5] ), Vector( t[6], t[7], t[8] ), Vector( t[9], t[10], t[11] ), player, TRACE_MASK_PLAYERSOLID, TRACE_COLLISION_GROUP_NONE )
+		local mask = ARES_HullMasks.len() ? ARES_HullMasks[i] : TRACE_MASK_PLAYERSOLID
+		local result = TraceHull( Vector( t[0], t[1], t[2] ), Vector( t[3], t[4], t[5] ), Vector( t[6], t[7], t[8] ), Vector( t[9], t[10], t[11] ), player, mask, TRACE_COLLISION_GROUP_NONE )
 		ARES_Log( "HULL " + i + " fraction=" + result.fraction + " end=" + result.endPos.z + " solid=" + result.startSolid + " normal=" + result.surfaceNormal )
 	}
 	// Physics objects dropped from each point show whether VPhysics collides with the world.
@@ -322,6 +327,8 @@ function ARES_Run( player )
 			player.SetVelocity( Vector( 0, 0, 0 ) )
 			if ( !announced && Time() >= announceAt )
 			{
+				if ( %ENGINE_SCREENSHOTS% )
+					ClientCommand( player, "screenshot %CAPTURE_TOKEN%_" + i )
 				ARES_Log( "VIEW " + i + " origin=" + player.GetOrigin() + " eye=" + player.EyePosition() + " alive=" + IsAlive( player ) )
 				announced = true
 			}
@@ -341,6 +348,26 @@ function ARES_OnSpawn( player )
 
 AddCallback_OnPlayerRespawned( ARES_OnSpawn )
 '''
+
+
+def collect_internal_capture(game, name, path, launch_time):
+    """Collect only a fresh, uniquely named engine screenshot; never desktop pixels."""
+    if not re.fullmatch(r'ares_[a-f0-9]{32}_[0-9]+', name):
+        raise ValueError('invalid internal capture name')
+    from PIL import Image
+    for root in (game, game/'Bin', game/'Data', game/'r1', game/'r1delta'):
+        for extension in ('.jpg', '.tga', '.png'):
+            source = root/'screenshots'/(name + extension)
+            if source.is_file() and not source.is_symlink() and source.stat().st_mtime_ns >= launch_time:
+                try:
+                    with Image.open(source) as frame:
+                        frame.load()
+                        frame.save(path, format='PNG')
+                except (OSError, ValueError):
+                    continue  # engine may still be writing
+                source.unlink()  # exact task-owned filename only
+                return True
+    return False
 
 
 def capture_window(pid, path):
@@ -388,13 +415,34 @@ def capture_window(pid, path):
     return True
 
 
-def write_mod(game, maps, checks):
+TRACE_MASKS = {name: 'TRACE_MASK_' + name.upper()
+               for name in ('playersolid', 'solid', 'shot', 'water')}
+
+
+def validate_masks(values, count, label):
+    if (not isinstance(values, list) or (values and len(values) != count) or
+            any(not isinstance(value, str) or value not in TRACE_MASKS for value in values)):
+        raise ValueError(f'{label} must be empty or match probe rows with known trace mask names')
+    return values
+
+
+def write_mod(game, maps, checks, capture_token=None):
+    if type(checks.get('engine_screenshots', False)) is not bool:
+        raise ValueError('engine_screenshots must be a boolean')
+    capture_token = capture_token or 'ares_' + uuid.uuid4().hex
+    if not re.fullmatch(r'ares_[a-f0-9]{32}', capture_token):
+        raise ValueError('invalid capture token')
     hulls = checks.get('hulls', [])
     if not isinstance(hulls, list) or any(
             not isinstance(row, list) or len(row) != 12 or
             any(type(v) not in (int, float) or not math.isfinite(v) for v in row) or
             any(row[6+i] > row[9+i] for i in range(3)) for row in hulls):
         raise ValueError('hulls must contain finite start/end/mins/maxs rows with ordered extents')
+    traces = checks.get('traces', [])
+    if not isinstance(traces, list):
+        raise ValueError('traces must be a list')
+    trace_masks = validate_masks(checks.get('trace_masks', []), len(traces), 'trace_masks')
+    hull_masks = validate_masks(checks.get('hull_masks', []), len(hulls), 'hull_masks')
     models = checks.get('drop_models', [])
     if (not isinstance(models, list) or (models and len(models) != len(checks.get('drops', []))) or
             any(not isinstance(name, str) or not re.fullmatch(r'models/[A-Za-z0-9_/-]+\.mdl', name) or
@@ -419,7 +467,11 @@ def write_mod(game, maps, checks):
     (scripts/'_mapspawn.nut').write_bytes(base + b'\nIncludeScript( "ares_tf1_harness", getroottable() )\n')
     sq = lambda rows: '[' + ', '.join('[' + ', '.join(f'{float(v):.3f}' for v in row) + ']' for row in rows) + ']'
     (scripts/'ares_tf1_harness.nut').write_text(SCRIPT.replace('%TRACES%', sq(checks.get('traces', [])))
+                                                .replace('%CAPTURE_TOKEN%', capture_token)
+                                                .replace('%ENGINE_SCREENSHOTS%', 'true' if checks.get('engine_screenshots', False) else 'false')
                                                 .replace('%HULLS%', sq(hulls))
+                                                .replace('%TRACE_MASKS%', '[' + ','.join(TRACE_MASKS[m] for m in trace_masks) + ']')
+                                                .replace('%HULL_MASKS%', '[' + ','.join(TRACE_MASKS[m] for m in hull_masks) + ']')
                                                 .replace('%VIEWS%', sq(checks.get('views', [])))
                                                 .replace('%VIEW_COMMANDS%', json.dumps(view_commands))
                                                 .replace('%DROPS%', sq(checks.get('drops', [])))
@@ -452,7 +504,9 @@ def main():
     enabled_path = args.game/'Mods/enabledmods.json'
     enabled_backup = enabled_path.read_bytes()
     log = args.game/'Logs/tforevive.log'
-    mod = write_mod(args.game, args.maps, checks)
+    capture_token = 'ares_' + uuid.uuid4().hex
+    capture_methods = {}
+    mod = write_mod(args.game, args.maps, checks, capture_token)
     try:
         enabled = json.loads(enabled_backup)
         enabled[MOD] = True
@@ -472,6 +526,7 @@ def main():
             text = ''
             captured = set()
             seen_views = set()
+            pending_views = {}
             try:
                 while time.time() < deadline and process.poll() is None:
                     # Capture every time: TFO can launch a replacement handler.
@@ -482,9 +537,18 @@ def main():
                     for view in re.findall(r'\[ARES\] VIEW (\d+)', text):
                         if view not in seen_views:
                             seen_views.add(view)
-                            args.output.mkdir(parents=True, exist_ok=True)
-                            if capture_window(process.pid, args.output/f'view{view}.png'):
-                                captured.add(view)
+                            pending_views[view] = time.monotonic()
+                    for view, announced in list(pending_views.items()):
+                        args.output.mkdir(parents=True, exist_ok=True)
+                        path = args.output/f'view{view}.png'
+                        if collect_internal_capture(args.game, capture_token + '_' + view, path, launch_time):
+                            captured.add(view)
+                            capture_methods[view] = 'engine'
+                            del pending_views[view]
+                        elif time.monotonic() - announced >= 1 and capture_window(process.pid, path):
+                            captured.add(view)
+                            capture_methods[view] = 'window-fallback'
+                            del pending_views[view]
                     if '[ARES] DONE' in text or 'A CRASH HAS BEEN CAPTURED' in text:
                         time.sleep(4)
                         break
@@ -518,6 +582,7 @@ def main():
     if exit_code not in (None, 0):
         errors.append(f'TFO exited abnormally with code {exit_code}')
     report = {'map': args.map, 'events': events, 'errors': errors, 'screenshots': [s.name for s in new_shots],
+              'capture_methods': capture_methods,
               'loaded': target_map_loaded(text, args.map), 'finished': '[ARES] DONE' in text}
     (args.output/'report.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))

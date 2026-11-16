@@ -110,3 +110,18 @@ New view markers include `alive=true` and finite eye coordinates; missing or
 false alive state fails validation even when the player origin matches. This
 rejects poses recorded after death; screenshot/pose frame synchronization still
 requires visual review.
+
+
+Optional `trace_masks` and `hull_masks` arrays select one mask per corresponding
+probe row: `playersolid`, `solid`, `shot` or `water`. Empty/omitted arrays retain
+`playersolid`. Nonempty arrays must match the probe count. Values are mapped to
+known engine constants, never interpolated as arbitrary script expressions.
+These traces do not replace actual fired-projectile or titan gameplay tests.
+
+
+`engine_screenshots: true` experimentally requests the game's `screenshot`
+command, collecting a fresh uniquely named image and converting it to PNG.
+Reports record `capture_methods` as `engine` or `window-fallback`. The option
+is off by default: TFORevive.Core 135 crashed during both JPEG and screenshot
+capture commands in native tests. R1 internal capture is unverified. Window
+fallbacks can include desktop popups; inspect them before claiming visual parity.

@@ -157,6 +157,18 @@ class R1HarnessTests(unittest.TestCase):
         self.assertIn('"[ARES] HULL 7 fraction=" + r.fraction + " end=" + r.endPos.z', script)
         self.assertIn('TRACE_COLLISION_GROUP_NONE );', script)
 
+    def test_trace_masks_select_constants_per_batch(self):
+        rows = [[0, 0, 10, 0, 0, 0]] * 2
+        script = r1_harness.trace_script(rows, 120, False, ['shot', 'water'])
+        self.assertIn('TRACE_MASK_SHOT,', script)
+        self.assertIn('TRACE_MASK_WATER,', script)
+        self.assertIn('TRACE 120', script)
+        self.assertIn('TRACE 121', script)
+        with self.assertRaises(ValueError):
+            r1_harness.validate_checks({'traces': rows, 'trace_masks': ['shot']})
+        with self.assertRaises(ValueError):
+            r1_harness.trace_script(rows, 0, False, ['water', 'bad'])
+
     def test_sequential_drops_keep_indices_and_destroy_before_next_spawn(self):
         calls = []
         class FakeControl:
