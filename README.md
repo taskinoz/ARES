@@ -177,3 +177,11 @@ Phase 2 validators now check v29 CSM bounds/tree ranges/cycles and required
 embedded entity-partition sidecars before map staging. The underwater band
 persists with top-only water, solid banks and broader world draw flags; no
 speculative compiler change was applied. See the compatibility log for evidence.
+
+
+The v29 validator now checks occlusion/shadow streams, texture name strings and
+physics model/solid framing. Six TF1 references and the TFO lobby pass these
+structural checks. A fresh alive retail R1 underwater reference also has a
+horizon artifact, so the band is not unique to compiled custom maps. Full
+lighting/physics, dependencies, gameplay/navigation and release parity remain
+open; see the TF1/TFO compatibility log for the bounded evidence.

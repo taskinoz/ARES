@@ -383,3 +383,23 @@ Validation: 238 MRVN tool tests, 157 ARES format-tool tests, 81 adapter tests,
 assets or account-bearing logs are committed. Water parity, lighting semantics,
 complete dependency packages, gameplay/navigation and human release gates keep
 Phase 2 open.
+
+
+## 17 November: retail water control and expanded structural checks
+
+A fresh retail R1Delta Angel City control now has alive poses and engine
+captures. Camera-only god/invulnerability protection avoids the death-camera
+false positive; two eyes are in native water cells and one is a dry control.
+The wet view at (-8000,8000,-80) also shows a dark horizon strip. The authored
+flooded BSP has no band in the sampled TFO view and retains one in R1Delta.
+This is a runtime/reference limitation, not evidence for a speculative compiler
+change or proof of full visual parity. MRVN retains all local reports.
+
+The upstream v29 validator now checks occlusion and opaque/alpha shadow mesh
+streams, mesh-local indices, texture string offsets/name indices and bounded
+PHYSICS_COLLIDE model/solid/keydata framing. It does not decode IVP tree/fluid
+semantics or assign CSM object-ID meanings. Six TF1 references, the TFO lobby
+and the authored audit baseline pass; the compiler checkpoint has 60 passing
+regression reports. Updated ARES validation: 166 format tests, 81 adapter tests
+and registry validation pass. Full Phase 2 remains open for broader lighting,
+physics, complete dependencies, gameplay/navigation and human match gates.
