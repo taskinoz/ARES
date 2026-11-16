@@ -125,3 +125,11 @@ Reports record `capture_methods` as `engine` or `window-fallback`. The option
 is off by default: TFORevive.Core 135 crashed during both JPEG and screenshot
 capture commands in native tests. R1Delta 3.0.5 passed three engine captures and prefers that path by default. Window
 fallbacks can include desktop popups; inspect them before claiming visual parity.
+
+
+Before installing a custom v29 map, the adapter checks embedded `01*`
+ENTITY_PARTITIONS declarations and requires each named `map_partition.ent`
+sidecar to exist locally, be nonempty and not be linked. Missing spawn sidecars
+can otherwise leave a map on its loading screen. This is a packaging preflight,
+not entity-syntax or gameplay validation. Other BSP versions and external
+partition-table overrides are outside this check.

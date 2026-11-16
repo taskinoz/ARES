@@ -35,6 +35,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tfo_harness import capture_window, collect_internal_capture, expectation_errors, height_expectations, view_errors, validate_masks, TRACE_MASKS  # noqa: E402
+from tf1_sidecars import require_entity_sidecars  # noqa: E402
 
 ADDON_PREFIX = 'ARES.TF1Harness.'
 OWNER = '.ares-harness-owner.json'
@@ -205,6 +206,7 @@ def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=No
         source = maps / 'maps' if (maps / 'maps' / f'{map_name}.bsp').is_file() else maps
         if not (source / f'{map_name}.bsp').is_file():
             raise ValueError(f'missing compiled map: {maps / (map_name + ".bsp")}')
+        require_entity_sidecars(source / f'{map_name}.bsp')
     hook = 'scripts/vscripts/test/myscript.nut'
     if models is not None:
         owners = [app / 'r1delta' / hook] + list((r1 / 'addons').glob('*/' + hook))

@@ -41,6 +41,17 @@ def close_process(process):
 
 
 class TfoHarnessTests(unittest.TestCase):
+    def test_missing_entity_sidecar_fails_before_mod_install(self):
+        from test_tf1_sidecars import write_bsp
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            maps = root / 'maps'
+            maps.mkdir()
+            write_bsp(maps / 'mp_probe.bsp')
+            with self.assertRaisesRegex(ValueError, 'mp_probe_spawn.ent'):
+                write_mod(root / 'game', maps, {})
+            self.assertFalse((root / 'game/Mods' / MOD).exists())
+
     def test_internal_capture_requires_owned_fresh_decodable_image(self):
         from PIL import Image
         from tfo_harness import collect_internal_capture

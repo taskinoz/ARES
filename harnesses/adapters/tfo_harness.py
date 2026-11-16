@@ -42,6 +42,7 @@ import time
 import uuid
 from pathlib import Path
 from physics_observations import observations, vector as parse_vector
+from tf1_sidecars import require_entity_sidecars
 
 MOD = 'ARES.TF1Harness'
 
@@ -457,6 +458,8 @@ def write_mod(game, maps, checks, capture_token=None):
             not isinstance(c, str) or not re.fullmatch(r'[A-Za-z0-9_ .+-]{1,64}', c) for c in view_commands):
         raise ValueError('view_commands must be short console commands')
     mods = game/'Mods'
+    for bsp in maps.glob('*.bsp'):
+        require_entity_sidecars(bsp)
     mod = mods/MOD
     if mod.exists():
         raise SystemExit(f'{mod} exists; remove it first')

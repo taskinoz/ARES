@@ -114,3 +114,11 @@ control. Loose shader files in an addon did not restore it. MRVN-Radiant's
 supplied `shaders/fxc/*.vcs`; it includes no retail caches. Stage such packages
 only with owned isolated filenames and cleanup. This adapter's material-tree
 option does not stage shaders or map VPKs automatically.
+
+
+Before installing a custom v29 map, the adapter checks embedded `01*`
+ENTITY_PARTITIONS declarations and requires each named `map_partition.ent`
+sidecar to exist locally, be nonempty and not be linked. Missing spawn sidecars
+can otherwise leave a map on its loading screen. This is a packaging preflight,
+not entity-syntax or gameplay validation. Other BSP versions and external
+partition-table overrides are outside this check.

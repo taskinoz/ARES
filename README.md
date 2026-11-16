@@ -172,3 +172,8 @@ shader caches are in a map VPK; loose shader copies do not work. The explicit
 records hashes without including retail assets. The underwater black band
 remains. R1 prefers verified engine screenshots; TFO engine capture remains
 opt-in after native crashes. Full Phase 2 release acceptance is still open.
+
+Phase 2 validators now check v29 CSM bounds/tree ranges/cycles and required
+embedded entity-partition sidecars before map staging. The underwater band
+persists with top-only water, solid banks and broader world draw flags; no
+speculative compiler change was applied. See the compatibility log for evidence.

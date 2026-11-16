@@ -50,6 +50,16 @@ class R1HarnessTests(unittest.TestCase):
         self.assertIn('"UserMod" "1"', listing)
         self.assertNotIn('ARES.TF1Harness', listing)
 
+    def test_missing_declared_spawn_sidecar_fails_before_addon_mutation(self):
+        from test_tf1_sidecars import write_bsp
+        write_bsp(self.maps / 'mp_test.bsp')
+        (self.maps / 'mp_test_spawn.ent').unlink()
+        original = (self.r1 / 'addonlist.txt').read_bytes()
+        with self.assertRaisesRegex(ValueError, 'mp_test_spawn.ent'):
+            self.prepare()
+        self.assertEqual((self.r1 / 'addonlist.txt').read_bytes(), original)
+        self.assertFalse((self.r1 / 'addons').exists())
+
     def test_drop_model_files_are_staged_from_a_loose_tree(self):
         dump = self.root / 'assets_dump/models/containers'
         dump.mkdir(parents=True)
