@@ -23,10 +23,11 @@ upstream:
   license: GPL-2.0-or-later
 verification:
   status: partial
-  last_checked: "2026-11-16"
+  last_checked: "2026-11-17"
   notes:
+    - "Initial alive spawn pose and axis-aligned/rotated trigger enter/exit counts pass in both runtimes. Native atlas NPC flat-floor support passes five samples using target-specific settings; no piloting, combat, navigation or complete-mode parity claim. 102 adapter tests pass."
     - "One compiled wet/dry cardboard buoyancy probe completed; dry PHY support and sampled translation checks pass. Wet body keeps bobbing despite zero entity velocity; broader buoyancy/rest acceptance remains open."
-    - "Native compiled water-room probes record three exact camera origins and alive=true. Material staging and diagnostic unlit surfaces work; native Water surface rendering remains unresolved. Death/missing-alive captures are rejected."
+    - "Native compiled water-room probes record three exact camera origins and alive=true. Material staging and diagnostic unlit surfaces work; native Water surface rendering is restored by the shader VPK pair; underwater horizon artifacts remain, including a retail reference. Death/missing-alive captures are rejected."
     - "ARES adapter run in R1Delta 3.0.5 on an authored v29 brush/patch map: six collision probes match TFO; barrel speed/bounds and four sequential drops pass. Broader gameplay/visual parity is unverified."
 inspection:
   checked_at: "2026-11-12T12:30:00Z"

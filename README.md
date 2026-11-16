@@ -193,3 +193,8 @@ alive player poses and exact cumulative touch output counts; authored
 axis-aligned and rotated enter/exit sequences plus the initial spawn pose pass
 in both R1Delta and TFO. These controlled
 repositioning probes do not certify normal traversal, objectives or navigation.
+
+Native atlas NPC flat-floor support also passes five samples in both runtimes.
+The shared `titans` check selects their different atlas settings names and rejects
+invalid/dead/missing samples, unsupported poses or excessive sampled motion.
+Titan piloting, combat, curved surfaces and AI navigation remain unverified.

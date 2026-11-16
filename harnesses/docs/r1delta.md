@@ -156,3 +156,25 @@ within the tolerance per axis of at least one allowed position. Optional `team`
 requires 2 or 3 specifically. Default tolerance is 4 (allowed 0.01..64); up to
 64 allowed origins stay within ?16384. This samples one initial spawn, not
 respawn choice, all teams, mode selection, objective entities or multiplayer.
+
+
+## Native atlas support probe
+
+`"titans":[{"origin":[0,500,256],"team":2,"floor_z":0}]` creates a native
+atlas NPC on a large floor, then samples it five times at one-second intervals.
+The adapters select `titan_atlas` in R1Delta and `titan_atlas_tier0` in TFO;
+these script setting names are not interchangeable. The NPC is destroyed after
+the samples, including a caught script failure. R1 setup is guarded against
+control-call retries. Script errors, missing/duplicate samples, dead/non-titan
+entities, nonfinite or invalid bounds, an XY displacement from the requested
+spawn greater than `tolerance`, or a bounding-box bottom away from `floor_z`
+fail. Default tolerance is 1 (allowed 0.01..8). `max_translation` (default 0.25,
+allowed 0.01..8) bounds pairwise sampled displacement independently of reported
+velocity. Velocity is diagnostic, not proof of rest.
+
+At most eight sequential probes are allowed; `samples` is 2..10 (default 5)
+and `wait` is 0.25..2 seconds per sample (default 1). Choose a friendly team to
+avoid combat moving or killing the probe. This tests sampled native NPC support
+on the supplied surface, not titan piloting, traversal, combat, AI navigation,
+curved surfaces or movement between samples. MRVN-Radiant's
+`prepare_tf1_triggers.py --titans` adds this probe to its original fixture.

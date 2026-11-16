@@ -35,6 +35,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tfo_harness import capture_window, collect_internal_capture, expectation_errors, height_expectations, view_errors, validate_masks, TRACE_MASKS  # noqa: E402
+from titan_checks import validate_titans, titan_errors, titan_script
 from spawn_checks import validate_spawn, spawn_script, spawn_errors
 from trigger_checks import validate_triggers, trigger_errors, trigger_script
 from tf1_sidecars import require_entity_sidecars  # noqa: E402
@@ -82,6 +83,7 @@ def validate_checks(checks):
               for key, width in (('traces', 6), ('hulls', 12), ('views', 5), ('drops', 3))}
     if type(checks.get('engine_screenshots', True)) is not bool:
         raise ValueError('engine_screenshots must be a boolean')
+    result['titans'] = validate_titans(checks.get('titans', []))
     result['spawn_probe'] = validate_spawn(checks.get('spawn_probe'))
     result['triggers'] = validate_triggers(checks.get('triggers', []))
     result['engine_screenshots'] = checks.get('engine_screenshots', True)
@@ -406,6 +408,22 @@ def held_view_script(view, token):
     }}'''
 
 
+def run_titan_checks(control, rows, events):
+    if not rows:
+        return
+    token = uuid.uuid4().hex
+    control.squirrel(f'if (!("ARES_TitanToken" in getroottable()) || ::ARES_TitanToken != "{token}") {{' +
+                     titan_script(rows, 'r1') + f'::ARES_TitanToken <- "{token}"; thread ARES_RunTitans();' + '}')
+    deadline = time.monotonic() + 30 + sum(r.get('samples', 5) * r.get('wait', 1) for r in rows)
+    while time.monotonic() < deadline:
+        result = control.squirrel('if (::ARES_TitanDone) { foreach(e in ::ARES_TitanEvents) printl("[ARES] " + e); printl("[ARES] TITANS_DONE"); }')
+        if 'TITANS_DONE' in result:
+            events.extend(e for e in result if e != 'TITANS_DONE')
+            return
+        time.sleep(.5)
+    raise TimeoutError('titan probes did not finish')
+
+
 def run_trigger_checks(control, rows, events):
     if not rows:
         return
@@ -591,6 +609,7 @@ def attempt(session, checks, output, timeout):
         report['capture_methods'] = {}
         if checks.get('spawn_probe') is not None:
             report['events'].extend(control.squirrel('local player=GetPlayerArray()[0];' + spawn_script(checks['spawn_probe'])))
+        run_titan_checks(control, checks.get('titans', []), report['events'])
         run_trigger_checks(control, checks.get('triggers', []), report['events'])
         run_checks(control, checks, process.pid, output, report['events'], report['screenshots'],
                    Path(session['game']), report['capture_methods'])
@@ -606,6 +625,7 @@ def attempt(session, checks, output, timeout):
     finally:
         stop(process, control)
     if report['finished']:
+        report['errors'] += titan_errors(report['events'], checks.get('titans', []))
         report['errors'] += spawn_errors(report['events'], checks.get('spawn_probe'))
         report['errors'] += trigger_errors(report['events'], checks.get('triggers', []))
         report['errors'] += expectation_errors(report['events'], checks['expect'])

@@ -44,6 +44,7 @@ from pathlib import Path
 from physics_observations import observations, vector as parse_vector
 from tf1_sidecars import require_entity_sidecars
 
+from titan_checks import validate_titans, titan_errors, titan_script
 from spawn_checks import validate_spawn, spawn_script, spawn_errors
 from trigger_checks import validate_triggers, trigger_errors, trigger_script
 
@@ -214,6 +215,7 @@ class CrashHandlers:
 SCRIPT = r'''
 // ARES TF1 harness: native probes and screenshots, then quit.
 %TRIGGER_SCRIPT%
+%TITAN_SCRIPT%
 ::ARES_TraceMasks <- %TRACE_MASKS%
 ::ARES_HullMasks <- %HULL_MASKS%
 ::ARES_Traces <- %TRACES%
@@ -255,6 +257,8 @@ function ARES_Run( player )
 	wait 3
 	ARES_Log( "BEGIN" )
 	%SPAWN_SCRIPT%
+	ARES_RunTitans()
+	foreach(e in ARES_TitanEvents) ARES_Log(e)
 	ARES_RunTriggers(player)
 	foreach(e in ARES_TriggerEvents) ARES_Log(e)
 	foreach ( i, t in ARES_Traces )
@@ -435,6 +439,7 @@ def validate_masks(values, count, label):
 
 
 def write_mod(game, maps, checks, capture_token=None):
+    validate_titans(checks.get('titans', []))
     validate_spawn(checks.get('spawn_probe'))
     validate_triggers(checks.get('triggers', []))
     if type(checks.get('engine_screenshots', False)) is not bool:
@@ -478,7 +483,7 @@ def write_mod(game, maps, checks, capture_token=None):
     base = (mods/'TFORevive.Core/mod/scripts/vscripts/_mapspawn.nut').read_bytes()
     (scripts/'_mapspawn.nut').write_bytes(base + b'\nIncludeScript( "ares_tf1_harness", getroottable() )\n')
     sq = lambda rows: '[' + ', '.join('[' + ', '.join(f'{float(v):.3f}' for v in row) + ']' for row in rows) + ']'
-    (scripts/'ares_tf1_harness.nut').write_text(SCRIPT.replace('%SPAWN_SCRIPT%', spawn_script(checks.get('spawn_probe'))).replace('%TRIGGER_SCRIPT%', trigger_script(checks.get('triggers', []))).replace('%TRACES%', sq(checks.get('traces', [])))
+    (scripts/'ares_tf1_harness.nut').write_text(SCRIPT.replace('%TITAN_SCRIPT%', titan_script(checks.get('titans', []), 'tfo')).replace('%SPAWN_SCRIPT%', spawn_script(checks.get('spawn_probe'))).replace('%TRIGGER_SCRIPT%', trigger_script(checks.get('triggers', []))).replace('%TRACES%', sq(checks.get('traces', [])))
                                                 .replace('%CAPTURE_TOKEN%', capture_token)
                                                 .replace('%ENGINE_SCREENSHOTS%', 'true' if checks.get('engine_screenshots', False) else 'false')
                                                 .replace('%HULLS%', sq(hulls))
@@ -512,6 +517,7 @@ def main():
     if not re.fullmatch(r'[A-Za-z0-9_]+', args.map):
         raise SystemExit('invalid map name')
     checks = json.loads(args.checks.read_text()) if args.checks else {}
+    validate_titans(checks.get('titans', []))
     validate_spawn(checks.get('spawn_probe'))
     validate_triggers(checks.get('triggers', []))
     height_expectations(checks.get('expect', {}))  # reject malformed expectations before installing the mod
@@ -590,6 +596,7 @@ def main():
     new_shots, shot_errors = screenshot_results(args.output, len(checks.get('views', [])), captured)
     events = [line.split('[ARES] ', 1)[1] for line in text.splitlines() if '[ARES] ' in line]
     errors = [line for line in text.splitlines() if 'SCRIPT ERROR' in line or 'CRASH HAS BEEN CAPTURED' in line]
+    errors.extend(titan_errors(events, checks.get('titans', [])))
     errors.extend(spawn_errors(events, checks.get('spawn_probe')))
     errors.extend(trigger_errors(events, checks.get('triggers', [])))
     errors.extend(expectation_errors(events, checks.get('expect', {})))
