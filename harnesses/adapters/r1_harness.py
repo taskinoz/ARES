@@ -77,9 +77,9 @@ def validate_checks(checks):
         raise ValueError('checks must be a JSON object')
     result = {key: finite_rows(checks.get(key, []), width, key)
               for key, width in (('traces', 6), ('hulls', 12), ('views', 5), ('drops', 3))}
-    if type(checks.get('engine_screenshots', False)) is not bool:
+    if type(checks.get('engine_screenshots', True)) is not bool:
         raise ValueError('engine_screenshots must be a boolean')
-    result['engine_screenshots'] = checks.get('engine_screenshots', False)
+    result['engine_screenshots'] = checks.get('engine_screenshots', True)
     if any(row[6 + i] > row[9 + i] for row in result['hulls'] for i in range(3)):
         raise ValueError('hull mins must not exceed maxs')
     for key, rows in (('trace_masks', 'traces'), ('hull_masks', 'hulls')):

@@ -102,6 +102,15 @@ These traces do not replace actual fired-projectile or titan gameplay tests.
 `engine_screenshots: true` experimentally requests the game's `screenshot`
 command, collecting a fresh uniquely named image and converting it to PNG.
 Reports record `capture_methods` as `engine` or `window-fallback`. The option
-is off by default: TFORevive.Core 135 crashed during both JPEG and screenshot
-capture commands in native tests. R1 internal capture is unverified. Window
+is on by default for R1 after three verified internal captures on R1Delta 3.0.5.
+Set it to false to force window capture. TFO keeps it off: Core 135 crashed
+during both JPEG and screenshot commands. Window
 fallbacks can include desktop popups; inspect them before claiming visual parity.
+
+
+Water requires compiled shader caches loaded through the map VPK in the native
+control. Loose shader files in an addon did not restore it. MRVN-Radiant's
+`tools/respawn/pack_tf1_shaders.py` writes a shader-only VPK from explicitly
+supplied `shaders/fxc/*.vcs`; it includes no retail caches. Stage such packages
+only with owned isolated filenames and cleanup. This adapter's material-tree
+option does not stage shaders or map VPKs automatically.

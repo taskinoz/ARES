@@ -20,8 +20,8 @@ an intermission camera, has a smaller coordinate limit, and mounts different
 content; a successful TFO run does not establish R1Delta compatibility.
 
 Paired collision and rigid-prop support samples pass. One freshly compiled TFO
-water room renders underwater geometry/fog; R1Delta water surface rendering
-remains open. R1 capture cameras now use noclip after normal physics probes to
+water room renders underwater geometry/fog; R1Delta water surfaces now render
+with map-VPK shader caches, while an underwater band remains open. R1 capture cameras now use noclip after normal physics probes to
 prevent gravity drift. Complete lighting, collision, buoyancy, asset packaging,
 gameplay/navigation and human release acceptance are still required. See the
 [TF1/TFO compatibility log](docs/tf1-tfo-compatibility.md) for evidence and gaps.
@@ -29,8 +29,8 @@ gameplay/navigation and human release acceptance are still required. See the
 Current compiler follow-up corrects v29 mesh vertex-type and material-sort span
 metadata against five retail maps. R1 uniquely named UnlitGeneric controls draw
 both water surfaces from staged files, while native Water materials on the same
-BSP still fail visually. This isolates the staging/visibility control without
-claiming Water shader compatibility.
+BSP fail with only loose resources. A shader-only map VPK now restores those
+surfaces; the underwater band and broader visual parity remain open.
 
 The compiled water room also has a paired wet/dry cardboard buoyancy sample in
 R1Delta and TFO. Dry PHY support and sampled positional rest pass; wet boxes
@@ -166,8 +166,9 @@ came from [taskinoz/MRVN-Radiant](https://github.com/taskinoz/MRVN-Radiant).
 ARES was written with AI; see [AI.md](AI.md) for what was generated and for the
 human-built projects it depends on.
 
-Recent Phase 2 checks add paired transformed-brush probes and 32 TFO
-contents-mask inclusion/exclusion probes. Full native map VPK resources or
-rendering retail water first restore custom R1 water surfaces, but an underwater
-black band and standalone dependency packaging remain unresolved. See the
-compatibility log for retained failures and precise scope.
+R1 cold-load water surfaces now render when the two supplied compiled Water
+shader caches are in a map VPK; loose shader copies do not work. The explicit
+`pack_tf1_shaders.py` command reproduces the native-tested shader package and
+records hashes without including retail assets. The underwater black band
+remains. R1 prefers verified engine screenshots; TFO engine capture remains
+opt-in after native crashes. Full Phase 2 release acceptance is still open.

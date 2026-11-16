@@ -123,5 +123,5 @@ These traces do not replace actual fired-projectile or titan gameplay tests.
 command, collecting a fresh uniquely named image and converting it to PNG.
 Reports record `capture_methods` as `engine` or `window-fallback`. The option
 is off by default: TFORevive.Core 135 crashed during both JPEG and screenshot
-capture commands in native tests. R1 internal capture is unverified. Window
+capture commands in native tests. R1Delta 3.0.5 passed three engine captures and prefers that path by default. Window
 fallbacks can include desktop popups; inspect them before claiming visual parity.
