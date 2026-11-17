@@ -203,3 +203,11 @@ A separate local forward-input control now passes one standing flat-floor trigge
 crossing in both runtimes (one enter, one exit, 16 alive/non-crouched samples).
 This does not change the public `triggers` repositioning semantics or certify
 broader traversal, objectives, navigation or release parity.
+
+
+Explicit Hardpoint initialization now passes with three native objectives and
+terminals in both runtimes. TFO Core135 requires a reported temporary dialogue
+compatibility transform and a repaired supplied sound-definition file; unpatched
+authored and retail launch controls fail. The tool never edits installed Core or
+supplied sources. Capture, scoring, complete audio, navigation and full Phase 2
+release acceptance remain open. The adapter suite passes 127 tests.

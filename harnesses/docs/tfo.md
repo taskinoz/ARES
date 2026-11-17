@@ -189,3 +189,54 @@ avoid combat moving or killing the probe. This tests sampled native NPC support
 on the supplied surface, not titan piloting, traversal, combat, AI navigation,
 curved surfaces or movement between samples. MRVN-Radiant's
 `prepare_tf1_triggers.py --titans` adds this probe to its original fixture.
+
+
+## Explicit mode and Hardpoint initialization
+
+`"mode_check":{"mode":"cp","hardpoints":3}` selects `mp_gamemode cp` before
+loading the map, then requires both `GameRules.GetGameMode()` and `GAMETYPE`
+to report `cp`. The optional CP-only `hardpoints` count requires exactly that
+many native objectives (1..32), a successful initialization flag, unique IDs
+0..count-1 and a valid terminal for each. Other modes can use `{"mode":"tdm"}`
+without objective checks; accepted mode identifiers do not imply that every
+engine mode/alias works. A fallback mode, duplicate/missing results or incomplete
+objectives fails. R1 caches the observation before reading it, guarding against
+MCP retries emitting duplicate sets.
+
+MRVN-Radiant's `prepare_tf1_objectives.py --remap PATH --output NEW_DIR` creates
+an original Hardpoint room with three triggers, terminals, four assault points
+per objective and pilot spawns. It references the base-game terminal model;
+retail assets are not bundled. Initialization is not capture/scoring, team
+respawn selection, AI navigation or multiplayer acceptance.
+
+
+Core135's `game_state_dialog` routes CP dialogue through both legacy and shared
+mode loaders, causing duplicate `RegisterHardpointConversations` registration.
+The unpatched authored fixture and a retail Colony launch control fail before
+harness probes. `"tfo_cp_dialogue_compat":true` is an explicit opt-in for a
+bounded transform, and requires `mode_check.mode` to be `cp`. It adds CP to the
+legacy switch so that the second include is skipped. The helper rejects
+unsupported/already-fixed routing, invalid text and oversized sources. It
+copies the transformed installed script only into the owned temporary harness
+mod, with source/output hashes; installed Core files are not edited. Reports
+include a non-null `compatibility` object when this intervention is enabled.
+Such a run is not an unmodified-Core pass. Omit the flag when testing a Core
+version that already fixes the routing. Deterministic script errors now stop
+the harness promptly and are not retried as graphics startup failures.
+
+
+The CP compatibility transform also registers five MFDP-only conversations only
+when `GAMETYPE == MARKED_FOR_DEATH_PRO`; it does not bypass current-mode dialogue
+assertions. Core135's supplied Hardpoint sound definition has a known commented
+closing brace. Supply `--sound-file PATH/mp_hardpoints.txt --repair-hardpoint-sound`
+to stage a repaired copy. Unknown malformed variants fail closed. The original
+file and installed Core remain unchanged; source/output hashes and definition
+counts appear in `report.compatibility.sound_definitions`.
+
+`--sound-file` can be repeated for up to 32 explicit UTF-8 sound-definition files
+(4 MiB each, 16 MiB total), whose names must already occur as active audio entries
+in Core's manifest. Linked, duplicate, malformed or unsupported sources fail
+before staging. Repair requires explicit CP mode and supplied `mp_hardpoints.txt`.
+This validates syntax and references, not wave payloads or playback. The final
+three-point initialization fixture passes with these reported interventions;
+unmodified Core does not. Capture, scoring and other modes remain separate gates.

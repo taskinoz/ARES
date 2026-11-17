@@ -44,6 +44,9 @@ from pathlib import Path
 from physics_observations import observations, vector as parse_vector
 from tf1_sidecars import require_entity_sidecars
 
+from sound_definitions import load_sound_sources
+from tfo_cp_dialogue import patch_dialogue, validate_compat
+from mode_checks import validate_mode, mode_errors, mode_script
 from titan_checks import validate_titans, titan_errors, titan_script
 from spawn_checks import validate_spawn, spawn_script, spawn_errors
 from trigger_checks import validate_triggers, trigger_errors, trigger_script
@@ -58,6 +61,10 @@ def target_map_started(text, map_name):
 def target_map_loaded(text, map_name):
     return bool(re.search(r'UICodeCallback_LevelLoadingFinished:\s*' + re.escape(map_name) +
                           r'\s+\(error:\s*false\)', text))
+
+
+def run_stopped(text):
+    return any(marker in text for marker in ('[ARES] DONE', 'A CRASH HAS BEEN CAPTURED', 'SCRIPT ERROR'))
 
 
 def game_crashed(text, exit_code):
@@ -256,6 +263,7 @@ function ARES_Run( player )
 	player.EndSignal( "OnDestroy" )
 	wait 3
 	ARES_Log( "BEGIN" )
+	%MODE_SCRIPT%
 	%SPAWN_SCRIPT%
 	ARES_RunTitans()
 	foreach(e in ARES_TitanEvents) ARES_Log(e)
@@ -438,7 +446,9 @@ def validate_masks(values, count, label):
     return values
 
 
-def write_mod(game, maps, checks, capture_token=None):
+def write_mod(game, maps, checks, capture_token=None, sound_files=None, repair_hardpoint_sound=False):
+    validate_mode(checks.get('mode_check'))
+    validate_compat(checks)
     validate_titans(checks.get('titans', []))
     validate_spawn(checks.get('spawn_probe'))
     validate_triggers(checks.get('triggers', []))
@@ -471,7 +481,21 @@ def write_mod(game, maps, checks, capture_token=None):
     if not isinstance(view_commands, list) or any(
             not isinstance(c, str) or not re.fullmatch(r'[A-Za-z0-9_ .+-]{1,64}', c) for c in view_commands):
         raise ValueError('view_commands must be short console commands')
+    audio = load_sound_sources(sound_files, repair_hardpoint_sound, (checks.get('mode_check') or {}).get('mode'))
     mods = game/'Mods'
+    if audio:
+        manifest = (mods/'TFORevive.Core/mod/scripts/game_sounds_manifest.txt').read_text(encoding='utf-8-sig')
+        manifest = re.sub(r'//[^\n]*|/\*.*?\*/', '', manifest, flags=re.S)
+        mounted = {value.casefold() for value in re.findall(r'"precache_file"\s*"([^"]+)"', manifest)}
+        if any(('scripts/audio/' + name).casefold() not in mounted for name, _, _ in audio):
+            raise ValueError('sound source is not listed in the installed Core manifest')
+    dialogue = None
+    compatibility = None
+    if validate_compat(checks):
+        source = mods/'TFORevive.Core/mod/scripts/vscripts/game_state_dialog.nut'
+        if source.is_symlink() or not source.is_file() or source.stat().st_size > 2*1024*1024:
+            raise ValueError('unsupported Hardpoint dialogue source')
+        dialogue, compatibility = patch_dialogue(source.read_bytes())
     for bsp in maps.glob('*.bsp'):
         require_entity_sidecars(bsp)
     mod = mods/MOD
@@ -479,11 +503,22 @@ def write_mod(game, maps, checks, capture_token=None):
         raise SystemExit(f'{mod} exists; remove it first')
     scripts = mod/'mod/scripts/vscripts'
     scripts.mkdir(parents=True)
+    if audio:
+        folder = mod/'mod/scripts/audio'
+        folder.mkdir(parents=True)
+        for name, payload, _ in audio:
+            (folder/name).write_bytes(payload)
+        compatibility = compatibility or {'kind': 'supplied_sound_definitions', 'scope': 'Owned temporary sound definitions; playback unverified'}
+        compatibility['sound_definitions'] = [dict(filename=name, **info) for name, _, info in audio]
+    if compatibility is not None:
+        (mod/'compatibility.json').write_bytes(json.dumps(compatibility, indent=2).encode('utf-8'))
+    if dialogue is not None:
+        (scripts/'game_state_dialog.nut').write_bytes(dialogue)
     shutil.copytree(maps, mod/'mod/maps', ignore=shutil.ignore_patterns('*.map', '*.log', '*.json', '*.prt', '*.srf'))
     base = (mods/'TFORevive.Core/mod/scripts/vscripts/_mapspawn.nut').read_bytes()
     (scripts/'_mapspawn.nut').write_bytes(base + b'\nIncludeScript( "ares_tf1_harness", getroottable() )\n')
     sq = lambda rows: '[' + ', '.join('[' + ', '.join(f'{float(v):.3f}' for v in row) + ']' for row in rows) + ']'
-    (scripts/'ares_tf1_harness.nut').write_text(SCRIPT.replace('%TITAN_SCRIPT%', titan_script(checks.get('titans', []), 'tfo')).replace('%SPAWN_SCRIPT%', spawn_script(checks.get('spawn_probe'))).replace('%TRIGGER_SCRIPT%', trigger_script(checks.get('triggers', []))).replace('%TRACES%', sq(checks.get('traces', [])))
+    (scripts/'ares_tf1_harness.nut').write_text(SCRIPT.replace('%MODE_SCRIPT%', mode_script(checks.get('mode_check'))).replace('%TITAN_SCRIPT%', titan_script(checks.get('titans', []), 'tfo')).replace('%SPAWN_SCRIPT%', spawn_script(checks.get('spawn_probe'))).replace('%TRIGGER_SCRIPT%', trigger_script(checks.get('triggers', []))).replace('%TRACES%', sq(checks.get('traces', [])))
                                                 .replace('%CAPTURE_TOKEN%', capture_token)
                                                 .replace('%ENGINE_SCREENSHOTS%', 'true' if checks.get('engine_screenshots', False) else 'false')
                                                 .replace('%HULLS%', sq(hulls))
@@ -507,6 +542,8 @@ def main():
     p.add_argument('--maps', type=Path, required=True, help='Folder with the compiled .bsp and .ent files')
     p.add_argument('--map', required=True)
     p.add_argument('--checks', type=Path)
+    p.add_argument('--sound-file', type=Path, action='append', default=[], help='Explicit sound definition file already listed by Core; repeat as needed')
+    p.add_argument('--repair-hardpoint-sound', action='store_true', help='Repair the known commented brace in supplied mp_hardpoints.txt (cp mode only)')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--timeout', type=int, default=300)
     p.add_argument('--attempts', type=int, default=3)
@@ -517,6 +554,8 @@ def main():
     if not re.fullmatch(r'[A-Za-z0-9_]+', args.map):
         raise SystemExit('invalid map name')
     checks = json.loads(args.checks.read_text()) if args.checks else {}
+    validate_mode(checks.get('mode_check'))
+    validate_compat(checks)
     validate_titans(checks.get('titans', []))
     validate_spawn(checks.get('spawn_probe'))
     validate_triggers(checks.get('triggers', []))
@@ -526,7 +565,14 @@ def main():
     log = args.game/'Logs/tforevive.log'
     capture_token = 'ares_' + uuid.uuid4().hex
     capture_methods = {}
-    mod = write_mod(args.game, args.maps, checks, capture_token)
+    sound_options = {}
+    if args.sound_file:
+        sound_options['sound_files'] = args.sound_file
+    if args.repair_hardpoint_sound:
+        sound_options['repair_hardpoint_sound'] = True
+    mod = write_mod(args.game, args.maps, checks, capture_token, **sound_options)
+    compatibility_path = mod/'compatibility.json'
+    compatibility = json.loads(compatibility_path.read_text(encoding='utf-8')) if compatibility_path.is_file() else None
     try:
         enabled = json.loads(enabled_backup)
         enabled[MOD] = True
@@ -536,6 +582,9 @@ def main():
         # TFO.exe requires --authToken even with -noauth; the value is not a credential.
         command = [str(args.game/'Bin/TFO.exe'), '--authToken', 'ares-local-noauth', '-noauth', '-novid', '-windowed',
                    '-w', '1280', '-h', '720', '+sv_lan', '1', '+sv_cheats', '1', '+developer', '1', '+map', args.map]
+        if checks.get('mode_check') is not None:
+            position = command.index('+map')
+            command[position:position] = ['+mp_gamemode', checks['mode_check']['mode']]
         # TFO recreates its log on every launch. Its graphics driver sometimes
         # overflows the stack while starting up; such launches are retried.
         for attempt in range(args.attempts):
@@ -569,7 +618,7 @@ def main():
                             captured.add(view)
                             capture_methods[view] = 'window-fallback'
                             del pending_views[view]
-                    if '[ARES] DONE' in text or 'A CRASH HAS BEEN CAPTURED' in text:
+                    if run_stopped(text):
                         time.sleep(4)
                         break
                 handlers.capture()
@@ -585,7 +634,7 @@ def main():
                 finally:
                     handlers.capture()
                     handlers.close(crashed)
-            if target_map_started(text, args.map):
+            if target_map_started(text, args.map) or 'SCRIPT ERROR' in text:
                 break
             print(f'attempt {attempt + 1}: exited before loading the map, retrying', flush=True)
     finally:
@@ -596,6 +645,7 @@ def main():
     new_shots, shot_errors = screenshot_results(args.output, len(checks.get('views', [])), captured)
     events = [line.split('[ARES] ', 1)[1] for line in text.splitlines() if '[ARES] ' in line]
     errors = [line for line in text.splitlines() if 'SCRIPT ERROR' in line or 'CRASH HAS BEEN CAPTURED' in line]
+    errors.extend(mode_errors(events, checks.get('mode_check')))
     errors.extend(titan_errors(events, checks.get('titans', [])))
     errors.extend(spawn_errors(events, checks.get('spawn_probe')))
     errors.extend(trigger_errors(events, checks.get('triggers', [])))
@@ -604,7 +654,7 @@ def main():
     errors.extend(view_errors(events, checks.get('views', [])))
     if exit_code not in (None, 0):
         errors.append(f'TFO exited abnormally with code {exit_code}')
-    report = {'map': args.map, 'events': events, 'errors': errors, 'screenshots': [s.name for s in new_shots],
+    report = {'map': args.map, 'compatibility': compatibility, 'events': events, 'errors': errors, 'screenshots': [s.name for s in new_shots],
               'capture_methods': capture_methods,
               'loaded': target_map_loaded(text, args.map), 'finished': '[ARES] DONE' in text}
     (args.output/'report.json').write_text(json.dumps(report, indent=2))

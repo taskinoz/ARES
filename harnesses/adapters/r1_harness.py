@@ -35,6 +35,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tfo_harness import capture_window, collect_internal_capture, expectation_errors, height_expectations, view_errors, validate_masks, TRACE_MASKS  # noqa: E402
+from mode_checks import validate_mode, mode_errors, mode_script
 from titan_checks import validate_titans, titan_errors, titan_script
 from spawn_checks import validate_spawn, spawn_script, spawn_errors
 from trigger_checks import validate_triggers, trigger_errors, trigger_script
@@ -83,6 +84,7 @@ def validate_checks(checks):
               for key, width in (('traces', 6), ('hulls', 12), ('views', 5), ('drops', 3))}
     if type(checks.get('engine_screenshots', True)) is not bool:
         raise ValueError('engine_screenshots must be a boolean')
+    result['mode_check'] = validate_mode(checks.get('mode_check'))
     result['titans'] = validate_titans(checks.get('titans', []))
     result['spawn_probe'] = validate_spawn(checks.get('spawn_probe'))
     result['triggers'] = validate_triggers(checks.get('triggers', []))
@@ -408,6 +410,16 @@ def held_view_script(view, token):
     }}'''
 
 
+def run_mode_checks(control, probe, events):
+    if probe is None:
+        return
+    token = uuid.uuid4().hex
+    # Cache once without printing: a delayed MCP retry must not emit two sets.
+    control.squirrel(f'if (!("ARES_ModeToken" in getroottable()) || ::ARES_ModeToken != "{token}") {{' +
+                     f'::ARES_ModeToken <- "{token}"; ::ARES_ModeEvents <- [];' + mode_script(probe, capture=True) + '}')
+    events.extend(control.squirrel('foreach(e in ::ARES_ModeEvents) printl("[ARES] " + e);'))
+
+
 def run_titan_checks(control, rows, events):
     if not rows:
         return
@@ -580,6 +592,8 @@ def attempt(session, checks, output, timeout):
             time.sleep(1)
         control.initialize()
         time.sleep(5)  # let the main menu finish initialising
+        if checks.get('mode_check') is not None:
+            control.console('mp_gamemode ' + checks['mode_check']['mode'])
         control.console('map ' + session['map'])
         while True:
             if process.poll() is not None:
@@ -607,6 +621,7 @@ def attempt(session, checks, output, timeout):
         time.sleep(3)
         report['events'].append('BEGIN')
         report['capture_methods'] = {}
+        run_mode_checks(control, checks.get('mode_check'), report['events'])
         if checks.get('spawn_probe') is not None:
             report['events'].extend(control.squirrel('local player=GetPlayerArray()[0];' + spawn_script(checks['spawn_probe'])))
         run_titan_checks(control, checks.get('titans', []), report['events'])
@@ -625,6 +640,7 @@ def attempt(session, checks, output, timeout):
     finally:
         stop(process, control)
     if report['finished']:
+        report['errors'] += mode_errors(report['events'], checks.get('mode_check'))
         report['errors'] += titan_errors(report['events'], checks.get('titans', []))
         report['errors'] += spawn_errors(report['events'], checks.get('spawn_probe'))
         report['errors'] += trigger_errors(report['events'], checks.get('triggers', []))

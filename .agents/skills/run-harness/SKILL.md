@@ -56,7 +56,8 @@ Start small: one downward trace where you know the floor height, plus one view.
 
 Northstar also accepts `spawn_probe`, `mode_check`, `settle`, `console`
 and `thirdperson`. TFO/R1Delta accept `drops`, `drop_models`, `drop_wait`, initial `spawn_probe`
-authored `triggers` output checks and native atlas `titans` support probes. See their guides for the v29 schemas;
+authored `triggers` output checks, native atlas `titans` support probes and
+explicit `mode_check` initialization checks. See their guides for the v29 schemas;
 Northstar's `spawn_probe` schema differs. Trigger checks use controlled repositioning,
 not normal traversal.
 
@@ -90,3 +91,14 @@ their observed values, the artifacts, and what was **not** verified (e.g.
 | R1Delta match never starts | Map lacks `info_intermission` |
 | R1Delta drops never appear | Model not in the map's VPK; pass `--model-files` |
 | Black or wrong screenshot | Window hidden or covered (firewall prompt, other window) |
+
+
+TFO Core135 CP has a duplicate dialogue-registration fault reproduced by authored
+and retail launch controls. See the TFO guide for the explicit temporary
+`tfo_cp_dialogue_compat` intervention. Reports label it; do not call a patched
+run an unmodified-Core pass. Never edit installed Core scripts for this test.
+
+Core135 CP additionally needs the supplied Hardpoint sound definitions repaired
+at one known commented brace. Use the TFO guide's explicit sound-file/repair
+options; never silence dialogue assertions. Hashes and intervention metadata
+must remain in the report. Initialization does not certify capture or scoring.
