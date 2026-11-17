@@ -35,6 +35,19 @@ class R1HarnessTests(unittest.TestCase):
         return r1_harness.prepare(self.app, self.game, self.maps if maps else None, 'mp_test',
                                   ['models/containers/barrel.mdl'] if maps else None, run_id='a' * 32)
 
+    def test_native_ain_initialization_flag_is_explicit_and_typed(self):
+        session = {'app': str(self.app), 'game': str(self.game)}
+        with patch.object(r1_harness.subprocess, 'Popen') as launch:
+            r1_harness.launch(session, 12345)
+            self.assertNotIn(r1_harness.AIN_BUILD_FLAG, launch.call_args.args[0])
+            r1_harness.launch(dict(session, build_navigation=True), 12345)
+            self.assertEqual(launch.call_args.args[0].count(r1_harness.AIN_BUILD_FLAG), 1)
+            self.assertEqual(launch.call_args.kwargs['cwd'], self.game)
+            launch.reset_mock()
+            with self.assertRaises(ValueError):
+                r1_harness.launch(dict(session, build_navigation='yes'), 12345)
+            launch.assert_not_called()
+
     def test_staging_copies_only_the_level_and_cleanup_preserves_other_addons(self):
         session = self.prepare()
         addon = Path(session['addon'])

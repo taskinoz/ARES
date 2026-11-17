@@ -53,6 +53,7 @@ MAP_NAME = re.compile(r'[A-Za-z0-9_]+')
 MODEL_NAME = re.compile(r'models/[A-Za-z0-9_/-]+\.mdl')
 MODEL_EXTENSIONS = {'.mdl', '.vvd', '.vvc', '.vtx', '.phy', '.ani', '.vcs'}
 PROTOCOL = '2025-06-18'
+AIN_BUILD_FLAG = '-r1delta_build_ain_no_existing'
 BATCH = 120  # rows per Squirrel call; R1Delta captures at most 500 output lines
 
 
@@ -452,7 +453,7 @@ def run_navigation_checks(control, probe, events):
     token = uuid.uuid4().hex
     control.squirrel(f'if (!("ARES_NavigationToken" in getroottable()) || ::ARES_NavigationToken != "{token}") {{' +
                      navigation_script(probe) + f'::ARES_NavigationToken <- "{token}"; thread ARES_RunNavigation(GetPlayerArray()[0]);' + '}')
-    deadline = time.monotonic() + 120 + probe.get('samples', 12) * probe.get('wait', 1)
+    deadline = time.monotonic() + 120 + max(1, probe.get('round_trips', 0) * 2) * probe.get('samples', 12) * probe.get('wait', 1)
     while time.monotonic() < deadline:
         result = control.squirrel('if (::ARES_NavigationDone) { foreach(e in ::ARES_NavigationEvents) printl("[ARES] " + e); printl("[ARES] NAVIGATION_DONE"); }')
         if 'NAVIGATION_DONE' in result:
@@ -605,6 +606,11 @@ def launch(session, port):
     env['PATH'] = os.pathsep.join([str(p) for p in paths if p.is_dir()] + [env.get('PATH', '')])
     command = [str(app / 'Titanfall.exe'), '-novid', '-usemcp', '-windowed', '-w', '1280', '-h', '720',
                '+developer', '1', '+mcp_start_http', str(port)]
+    build_navigation = session.get('build_navigation', False)
+    if type(build_navigation) is not bool:
+        raise ValueError('build_navigation must be a boolean')
+    if build_navigation:
+        command.insert(1, AIN_BUILD_FLAG)
     return subprocess.Popen(command, cwd=game, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 

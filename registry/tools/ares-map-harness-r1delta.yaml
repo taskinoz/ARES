@@ -23,8 +23,10 @@ upstream:
   license: GPL-2.0-or-later
 verification:
   status: partial
-  last_checked: "2026-11-17"
+  last_checked: "2026-11-18"
   notes:
+    - "Two grunt round trips (48 movement samples) and one native atlas goal/return pair (40 samples) pass in both runtimes. Atlas checks native type/bounds and HULL_TITAN connectivity; final arrival facing unspecified. The initial TFO fixed-facing return hold fails and is retained. Piloting, combat, other hulls/maps and full Phase 2 remain open."
+    - "Scoped MRVN native AIN export/offline CRC packaging passes original and changed-pillar/node routes in both runtimes. Owned R1/TFO native fields agree with CRC 1916430116. Explicit build_navigation launch flag; no integrity checks disabled. Other hulls/formats, general AI and full release acceptance remain open."
     - "One original eight-node grunt obstacle route reaches/holds the goal in both runtimes with a generated AIN. Shared navigation_probe checks living indexed samples, floor/obstacle poses and arrival. R1 matching graph staging and bounded v54 framing are tested; native CRC/export automation, other hulls and general AI remain open. 151 adapter tests pass."
     - "Natural neutral-point capture/hold passes in the shared original CP fixture: living player in trigger contact, friendly ownership and five team points in both final runs. No state/ownership/score setters. TFO interventions remain explicit. Contested/recapture, other modes and release acceptance remain open; 136 adapter tests pass."
     - "Explicit CP mode and three native hardpoint IDs/terminals, living spawn and floor trace pass in R1Delta and TFO. TFO Core135 requires reported temporary dialogue and supplied sound-definition compatibility repairs; unmodified authored/retail controls fail. No capture/scoring/audio-playback claim. 127 adapter tests pass."

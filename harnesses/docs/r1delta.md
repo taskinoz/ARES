@@ -264,6 +264,48 @@ at launch (the local control uses `-r1delta_build_ain_no_existing`). Without it,
 it partially changes connectivity then fails its unknown-node-tail allocation.
 Use an explicit new private output filename with `updateain`; never use its
 `legacy` mode on installed graphs. The native exporter writes CRC zero without
-an existing source graph. The local matched-CRC control takes the expected CRC
-from the owned engine's validation state; a general offline CRC/export workflow
-is still unresolved. No integrity checks were disabled for that control.
+an existing source graph. MRVN-Radiant now has a scoped public exporter:
+`tools/respawn/build_tf1_navigation.py --ares ../ARES --maps MAPS --map NAME --output NEW_DIR`.
+Run it from that checkout with the pinned engine/server profile. It requests the
+explicit `build_navigation` session flag, exports to a new directory and uses
+`tf1_navigation_crc.py` to calculate the CRC offline. Ordinary launches do not
+enable that flag. External/compressed layouts and ambiguous selected text fail;
+tail/script semantics and correctness after geometry edits remain separate.
+
+Original and changed-pillar/node fixtures pass both runtimes' fresh route checks.
+Independent owned R1/TFO observations confirm the changed graph's file and
+expected CRC both equal 1916430116. No integrity check was disabled. Export is
+separate from route and full gameplay acceptance. MRVN-Radiant's
+`RESPAWN_TF1_NAVIGATION.md` records hashes, commands, evidence and limits.
+
+### Repeated native navigation legs
+
+Optional `navigation_probe.round_trips` accepts integers 0..3. Zero preserves
+the existing one-way events; a positive value requests that many goal/return
+pairs on the same NPC. Total sampled time must be at most 180 seconds.
+`NAVIGATION LEG N START/SAMPLE` events are indexed and checked independently:
+living floor/obstacle poses, initial/leg-start positions and final two arrival/
+hold poses. One successful leg does not establish later legs.
+
+Two round trips (four legs, 48 movement samples) pass in both runtimes on the
+changed-pillar fixture with the native-exported graph. Returns finish within
+the configured 24-unit radius. Controls still enable NPCs and disable movement
+starts/squad following; no NPC repositioning follows spawn. This is repeated
+human-hull static routing, not dynamic obstacles, default AI or combat.
+
+### Native atlas navigation
+
+`navigation_probe.actor` accepts `grunt` (default) or `atlas`.
+Atlas uses native `CreateSpawnNPCTitanTemplate`/`SpawnNPCTitan` with R1's
+`titan_atlas` or TFO's `titan_atlas_tier0` settings, and queries
+`HULL_TITAN` connectivity. Its required actor event verifies native titan type
+and finite ordered bounds larger than the human hull. Floor checks include the
+recorded minimum Z. Expand `forbidden_box` for the larger actor.
+
+Final paired runs pass one atlas goal/return pair with 20 movement samples per
+leg and bounds (-60,-60,0)..(60,60,235). Arrival facing is unspecified through the
+goal helper's `null` angle parameter. The earlier TFO control forcing facing
+(0,0,0) reaches the return area but fails its hold; it remains documented in
+MRVN-Radiant's navigation checkpoint. Radius, clearance and hold criteria were
+not relaxed. Piloting, combat, other titan types, default AI, dynamic obstacles
+and fixed-facing behavior remain open.

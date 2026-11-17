@@ -62,6 +62,86 @@ class NavigationTests(unittest.TestCase):
         self.assertTrue(navigation_errors([e.replace('neighbors=8', 'neighbors=1') for e in events()], PROBE))
         self.assertTrue(navigation_errors(events()[1:], PROBE))
 
+    def repeated(self):
+        rows = [events()[0]]
+        for leg in range(4):
+            reverse = leg % 2
+            for row in events()[1:]:
+                if reverse:
+                    row = row.replace('-400,', 'NEGATIVE,').replace('400,', '-400,').replace('NEGATIVE,', '400,')
+                    row = row.replace('-200,', 'NEGATIVE,').replace('200,', '-200,').replace('NEGATIVE,', '200,')
+                rows.append(row.replace('NAVIGATION ', f'NAVIGATION LEG {leg} ', 1))
+        return rows
+
+    def test_two_round_trips_require_every_leg(self):
+        probe = dict(PROBE, round_trips=2)
+        self.assertEqual(navigation_errors(self.repeated(), probe), [])
+        for bad in (self.repeated()[:-1], self.repeated() + [self.repeated()[-1]],
+                    [r for r in self.repeated() if not r.startswith('NAVIGATION LEG 2 ')]):
+            self.assertTrue(navigation_errors(bad, probe))
+
+    def test_reverse_and_later_arrival_cannot_reuse_first_leg_success(self):
+        probe = dict(PROBE, round_trips=2)
+        for leg in range(1, 4):
+            rows = self.repeated()
+            rows = [r.partition('origin=')[0] + 'origin=(vector : (-200, 0, 0.03125))'
+                    if r.startswith(f'NAVIGATION LEG {leg} SAMPLE 4 ') else r for r in rows]
+            self.assertTrue(any('final two samples' in error for error in navigation_errors(rows, probe)))
+
+    def test_repeated_start_floor_and_living_state_are_checked(self):
+        probe = dict(PROBE, round_trips=2)
+        for old, new in [('LEG 1 START valid=true', 'LEG 1 START valid=false'),
+                         ('LEG 2 START valid=true alive=true', 'LEG 2 START valid=true alive=false'),
+                         ('LEG 3 SAMPLE 2', 'LEG 3 SAMPLE 99')]:
+            self.assertTrue(navigation_errors([r.replace(old, new) for r in self.repeated()], probe))
+
+    def test_round_trip_config_and_duration_limits(self):
+        for value in (True, -1, 4, 1.5, '2'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                validate_navigation(dict(PROBE, round_trips=value))
+        with self.assertRaises(ValueError):
+            validate_navigation(dict(PROBE, round_trips=3, samples=30, wait=2))
+
+    def test_repeated_script_spawns_once_and_never_repositions(self):
+        script = navigation_script(dict(PROBE, round_trips=2))
+        self.assertEqual(script.count('SpawnGrunt('), 1)
+        self.assertLess(script.index('SpawnGrunt('), script.index('for(local leg='))
+        self.assertIn('leg%2==0 ? goal : start', script)
+        self.assertNotIn('SetOrigin', script)
+
+    def test_atlas_requires_native_type_and_large_finite_bounds(self):
+        probe = dict(PROBE, actor='atlas')
+        actor = 'NAVIGATION ACTOR atlas titan=true mins=(vector : (-60, -60, 0)) maxs=(vector : (60, 60, 235))'
+        rows = events()
+        rows.insert(1, actor)
+        self.assertEqual(navigation_errors(rows, probe), [])
+        for bad in (events(), rows+[actor],
+                    [r.replace('titan=true', 'titan=false') for r in rows],
+                    [r.replace('-60, -60, 0', '60, 60, 235') for r in rows],
+                    [r.replace('-60, -60, 0', 'nan, -60, 0') for r in rows],
+                    [r.replace('60, 60, 235', '60000, 60000, 235') for r in rows],
+                    [r.replace('-60, -60, 0', '-16, -16, 0').replace('60, 60, 235', '16, 16, 72') for r in rows]):
+            self.assertTrue(navigation_errors(bad, probe))
+
+    def test_atlas_uses_target_settings_and_hull(self):
+        probe = dict(PROBE, actor='atlas')
+        for runtime, setting in [('r1', 'titan_atlas'), ('tfo', 'titan_atlas_tier0')]:
+            script = navigation_script(probe, runtime)
+            self.assertIn('HULL_TITAN', script)
+            self.assertIn('"' + setting + '"', script)
+            self.assertIn('npc.IsTitan()', script)
+            self.assertIn('SendAIToAssaultPoint(npc,target,null,config[4])', script)
+            self.assertNotIn('SpawnGrunt(', script)
+            self.assertNotIn('SetOrigin', script)
+        self.assertIn('HULL_HUMAN', navigation_script(PROBE))
+
+    def test_unsupported_actor_and_runtime_rejected(self):
+        for actor in ('ogre', '', True, None, 3):
+            with self.subTest(actor=actor), self.assertRaises(ValueError):
+                validate_navigation(dict(PROBE, actor=actor))
+        with self.assertRaises(ValueError):
+            navigation_script(PROBE, 'r2')
+
     def test_script_has_natural_goal_and_bounded_waits(self):
         script = navigation_script(PROBE)
         self.assertIn('SendAIToAssaultPoint', script)
