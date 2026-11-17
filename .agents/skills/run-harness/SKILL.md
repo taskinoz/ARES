@@ -106,3 +106,10 @@ must remain in the report. Initialization does not certify capture or scoring.
 The v29 `cp_capture` option tests natural neutral-point capture and team scoring;
 it never sets match state or ownership. See the guides for limits and required
 TFO interventions. Do not promote one capture/hold to whole-mode or match parity.
+
+
+The v29 `navigation_probe` tests one sampled native grunt route with a supplied
+matching graph. See the runtime guides for graph framing limits, CRC/export
+caveats and explicit NPC controls. Node count/connectivity alone is not a route
+pass. Final arrival/hold and living floor/optional obstacle samples must pass;
+this does not establish general AI, continuous swept collision or combat parity.

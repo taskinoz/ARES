@@ -25,6 +25,7 @@ verification:
   status: partial
   last_checked: "2026-11-17"
   notes:
+    - "One original eight-node grunt obstacle route reaches/holds the goal in both runtimes with a generated AIN. Shared navigation_probe checks living indexed samples, floor/obstacle poses and arrival. R1 matching graph staging and bounded v54 framing are tested; native CRC/export automation, other hulls and general AI remain open. 151 adapter tests pass."
     - "Natural neutral-point capture/hold passes in the shared original CP fixture: living player in trigger contact, friendly ownership and five team points in both final runs. No state/ownership/score setters. TFO interventions remain explicit. Contested/recapture, other modes and release acceptance remain open; 136 adapter tests pass."
     - "Explicit CP mode and three native hardpoint IDs/terminals, living spawn and floor trace pass in R1Delta and TFO. TFO Core135 requires reported temporary dialogue and supplied sound-definition compatibility repairs; unmodified authored/retail controls fail. No capture/scoring/audio-playback claim. 127 adapter tests pass."
     - "Separate local forward-input control passes one standing flat-floor trigger crossing in each runtime, with 16 alive/non-crouched samples and one enter/exit. Public triggers still use repositioning; broader traversal and navigation remain open."

@@ -41,6 +41,8 @@ from titan_checks import validate_titans, titan_errors, titan_script
 from spawn_checks import validate_spawn, spawn_script, spawn_errors
 from trigger_checks import validate_triggers, trigger_errors, trigger_script
 from tf1_sidecars import require_entity_sidecars  # noqa: E402
+from tf1_ain import navigation_graph
+from navigation_checks import validate_navigation, navigation_script, navigation_errors
 
 ADDON_PREFIX = 'ARES.TF1Harness.'
 OWNER = '.ares-harness-owner.json'
@@ -85,6 +87,7 @@ def validate_checks(checks):
               for key, width in (('traces', 6), ('hulls', 12), ('views', 5), ('drops', 3))}
     if type(checks.get('engine_screenshots', True)) is not bool:
         raise ValueError('engine_screenshots must be a boolean')
+    result['navigation_probe'] = validate_navigation(checks.get('navigation_probe'))
     result['mode_check'] = validate_mode(checks.get('mode_check'))
     result['cp_capture'] = validate_capture(checks.get('cp_capture'), (result['mode_check'] or {}).get('mode'))
     result['titans'] = validate_titans(checks.get('titans', []))
@@ -211,12 +214,14 @@ def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=No
     if material_source is not None:
         staged += material_files(material_source)
     source = None
+    graph = None
     if maps is not None:
         maps = resolve_dir(maps, 'map build')
         source = maps / 'maps' if (maps / 'maps' / f'{map_name}.bsp').is_file() else maps
         if not (source / f'{map_name}.bsp').is_file():
             raise ValueError(f'missing compiled map: {maps / (map_name + ".bsp")}')
         require_entity_sidecars(source / f'{map_name}.bsp')
+        graph = navigation_graph(source / f'{map_name}.bsp')
     hook = 'scripts/vscripts/test/myscript.nut'
     if models is not None:
         owners = [app / 'r1delta' / hook] + list((r1 / 'addons').glob('*/' + hook))
@@ -248,6 +253,9 @@ def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=No
                 if item.is_file() and item.name.startswith(map_name) and (
                         item.suffix.lower() in ('.bsp', '.ent', '.bsp_lump') or '.bsp.' in item.name):
                     shutil.copyfile(item, target / item.name)
+        if graph is not None:
+            (target / 'graphs').mkdir()
+            (target / 'graphs' / (map_name + '.ain')).write_bytes(graph)
         for item, relative in staged:
             (addon / relative).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(item, addon / relative)
@@ -436,6 +444,22 @@ def run_mode_checks(control, probe, events):
     control.squirrel(f'if (!("ARES_ModeToken" in getroottable()) || ::ARES_ModeToken != "{token}") {{' +
                      f'::ARES_ModeToken <- "{token}"; ::ARES_ModeEvents <- [];' + mode_script(probe, capture=True) + '}')
     events.extend(control.squirrel('foreach(e in ::ARES_ModeEvents) printl("[ARES] " + e);'))
+
+
+def run_navigation_checks(control, probe, events):
+    if probe is None:
+        return
+    token = uuid.uuid4().hex
+    control.squirrel(f'if (!("ARES_NavigationToken" in getroottable()) || ::ARES_NavigationToken != "{token}") {{' +
+                     navigation_script(probe) + f'::ARES_NavigationToken <- "{token}"; thread ARES_RunNavigation(GetPlayerArray()[0]);' + '}')
+    deadline = time.monotonic() + 120 + probe.get('samples', 12) * probe.get('wait', 1)
+    while time.monotonic() < deadline:
+        result = control.squirrel('if (::ARES_NavigationDone) { foreach(e in ::ARES_NavigationEvents) printl("[ARES] " + e); printl("[ARES] NAVIGATION_DONE"); }')
+        if 'NAVIGATION_DONE' in result:
+            events.extend(e for e in result if e != 'NAVIGATION_DONE')
+            return
+        time.sleep(.5)
+    raise TimeoutError('navigation probe did not finish')
 
 
 def run_titan_checks(control, rows, events):
@@ -643,6 +667,7 @@ def attempt(session, checks, output, timeout):
         if checks.get('spawn_probe') is not None:
             report['events'].extend(control.squirrel('local player=GetPlayerArray()[0];' + spawn_script(checks['spawn_probe'])))
         run_capture_checks(control, checks.get('cp_capture'), report['events'])
+        run_navigation_checks(control, checks.get('navigation_probe'), report['events'])
         run_titan_checks(control, checks.get('titans', []), report['events'])
         run_trigger_checks(control, checks.get('triggers', []), report['events'])
         run_checks(control, checks, process.pid, output, report['events'], report['screenshots'],
@@ -661,6 +686,7 @@ def attempt(session, checks, output, timeout):
     if report['finished']:
         report['errors'] += capture_errors(report['events'], checks.get('cp_capture'))
         report['errors'] += mode_errors(report['events'], checks.get('mode_check'))
+        report['errors'] += navigation_errors(report['events'], checks.get('navigation_probe'))
         report['errors'] += titan_errors(report['events'], checks.get('titans', []))
         report['errors'] += spawn_errors(report['events'], checks.get('spawn_probe'))
         report['errors'] += trigger_errors(report['events'], checks.get('triggers', []))

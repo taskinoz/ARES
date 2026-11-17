@@ -218,3 +218,11 @@ in both runtimes, with native trigger contact and five team points. It does not
 set match state, ownership or scores. TFO's explicit compatibility setup remains
 required. Contested/recapture, other modes, navigation and full release parity
 are still open; 136 adapter tests pass.
+
+
+The shared `navigation_probe` now checks one living native grunt route with a
+supplied matching v54 AIN. The original eight-node pillar fixture routes to and
+holds its goal in R1Delta and TFO. R1 graph sidecars stage in the owned addon;
+both adapters check bounded framing. Native CRC/export automation and broader AI
+remain open; this is one sampled route, not full Phase 2 parity. See the runtime
+guides and compatibility log for explicit NPC controls and retained failures.

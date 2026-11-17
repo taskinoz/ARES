@@ -403,3 +403,34 @@ and the authored audit baseline pass; the compiler checkpoint has 60 passing
 regression reports. Updated ARES validation: 166 format tests, 81 adapter tests
 and registry validation pass. Full Phase 2 remains open for broader lighting,
 physics, complete dependencies, gameplay/navigation and human match gates.
+
+
+## 17 November: native grunt obstacle route
+
+One original floor/pillar/eight-node fixture now supports a living grunt route
+in R1Delta 3.0.5 and TFO Core135 after loading a generated v54 AIN. The grunt
+reaches `(400,0,0.03125)` by sample four (zero-based) and holds through sample 11.
+This is one sampled human-hull route, not general AI/navigation acceptance.
+The native builder requires its optional initialization hook; an uninitialized
+`updateain` command mutates connectivity then fails before export. The initialized
+control exports eight nodes/14 links in 949 bytes. It still needs a fresh graph
+load for the sampled route to work.
+
+R1's repeated control uses native-computed CRC `4285011719` and verifies equality
+in the owned process's validation state. TFO routes with the same corrected file;
+its internal CRC comparison is not separately instrumented. General CRC/export
+automation, script/tail semantics, other hulls, animations, combat and dynamic or
+repeated routes remain open. No installed graph or binary was replaced.
+
+The shared `navigation_probe` checks living start and indexed samples, connectivity,
+floor height, optional sampled obstacle-volume exclusion, and final arrival/hold.
+R1 stages the exact matching optional `maps/graphs/<map>.ain`; both adapters
+preflight bounded v54 node/link framing. The guides describe explicit NPC controls
+and limits. MRVN's asset-free fixture generator emits the map and checks but no
+AIN. Evidence stays under MRVN's ignored `.local/respawn/phase2-navigation`.
+
+
+Final public adapter runs `r1-public-api` and `tfo-public-api` both pass their
+navigation assertions: 12 living finite floor/obstacle samples and held goal.
+Current checks: 151 adapter tests, 172 format tests, registry and skill mirror pass.
+The compiler repository passes 261 tool tests and recompiles the fixture/checks.

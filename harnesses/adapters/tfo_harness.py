@@ -43,6 +43,8 @@ import uuid
 from pathlib import Path
 from physics_observations import observations, vector as parse_vector
 from tf1_sidecars import require_entity_sidecars
+from tf1_ain import navigation_graph
+from navigation_checks import validate_navigation, navigation_script, navigation_errors
 
 from capture_checks import validate_capture, capture_errors, capture_script
 from sound_definitions import load_sound_sources
@@ -225,6 +227,7 @@ SCRIPT = r'''
 %TRIGGER_SCRIPT%
 %TITAN_SCRIPT%
 %CAPTURE_SCRIPT%
+%NAVIGATION_SCRIPT%
 ::ARES_TraceMasks <- %TRACE_MASKS%
 ::ARES_HullMasks <- %HULL_MASKS%
 ::ARES_Traces <- %TRACES%
@@ -269,6 +272,7 @@ function ARES_Run( player )
 	%SPAWN_SCRIPT%
 	ARES_RunCapture(player)
 	foreach(e in ARES_CaptureEvents) ARES_Log(e)
+	%NAVIGATION_RUN%
 	ARES_RunTitans()
 	foreach(e in ARES_TitanEvents) ARES_Log(e)
 	ARES_RunTriggers(player)
@@ -454,6 +458,7 @@ def write_mod(game, maps, checks, capture_token=None, sound_files=None, repair_h
     validate_mode(checks.get('mode_check'))
     validate_compat(checks)
     validate_capture(checks.get('cp_capture'), (checks.get('mode_check') or {}).get('mode'))
+    validate_navigation(checks.get('navigation_probe'))
     validate_titans(checks.get('titans', []))
     validate_spawn(checks.get('spawn_probe'))
     validate_triggers(checks.get('triggers', []))
@@ -503,6 +508,7 @@ def write_mod(game, maps, checks, capture_token=None, sound_files=None, repair_h
         dialogue, compatibility = patch_dialogue(source.read_bytes())
     for bsp in maps.glob('*.bsp'):
         require_entity_sidecars(bsp)
+        navigation_graph(bsp)
     mod = mods/MOD
     if mod.exists():
         raise SystemExit(f'{mod} exists; remove it first')
@@ -523,7 +529,7 @@ def write_mod(game, maps, checks, capture_token=None, sound_files=None, repair_h
     base = (mods/'TFORevive.Core/mod/scripts/vscripts/_mapspawn.nut').read_bytes()
     (scripts/'_mapspawn.nut').write_bytes(base + b'\nIncludeScript( "ares_tf1_harness", getroottable() )\n')
     sq = lambda rows: '[' + ', '.join('[' + ', '.join(f'{float(v):.3f}' for v in row) + ']' for row in rows) + ']'
-    (scripts/'ares_tf1_harness.nut').write_text(SCRIPT.replace('%CAPTURE_SCRIPT%', capture_script(checks.get('cp_capture'))).replace('%MODE_SCRIPT%', mode_script(checks.get('mode_check'))).replace('%TITAN_SCRIPT%', titan_script(checks.get('titans', []), 'tfo')).replace('%SPAWN_SCRIPT%', spawn_script(checks.get('spawn_probe'))).replace('%TRIGGER_SCRIPT%', trigger_script(checks.get('triggers', []))).replace('%TRACES%', sq(checks.get('traces', [])))
+    (scripts/'ares_tf1_harness.nut').write_text(SCRIPT.replace('%NAVIGATION_SCRIPT%', navigation_script(checks.get('navigation_probe'))).replace('%NAVIGATION_RUN%', 'ARES_RunNavigation(player); foreach(e in ARES_NavigationEvents) ARES_Log(e)' if checks.get('navigation_probe') else '').replace('%CAPTURE_SCRIPT%', capture_script(checks.get('cp_capture'))).replace('%MODE_SCRIPT%', mode_script(checks.get('mode_check'))).replace('%TITAN_SCRIPT%', titan_script(checks.get('titans', []), 'tfo')).replace('%SPAWN_SCRIPT%', spawn_script(checks.get('spawn_probe'))).replace('%TRIGGER_SCRIPT%', trigger_script(checks.get('triggers', []))).replace('%TRACES%', sq(checks.get('traces', [])))
                                                 .replace('%CAPTURE_TOKEN%', capture_token)
                                                 .replace('%ENGINE_SCREENSHOTS%', 'true' if checks.get('engine_screenshots', False) else 'false')
                                                 .replace('%HULLS%', sq(hulls))
@@ -562,6 +568,7 @@ def main():
     validate_mode(checks.get('mode_check'))
     validate_compat(checks)
     validate_capture(checks.get('cp_capture'), (checks.get('mode_check') or {}).get('mode'))
+    validate_navigation(checks.get('navigation_probe'))
     validate_titans(checks.get('titans', []))
     validate_spawn(checks.get('spawn_probe'))
     validate_triggers(checks.get('triggers', []))
@@ -653,6 +660,7 @@ def main():
     errors = [line for line in text.splitlines() if 'SCRIPT ERROR' in line or 'CRASH HAS BEEN CAPTURED' in line]
     errors.extend(capture_errors(events, checks.get('cp_capture')))
     errors.extend(mode_errors(events, checks.get('mode_check')))
+    errors.extend(navigation_errors(events, checks.get('navigation_probe')))
     errors.extend(titan_errors(events, checks.get('titans', [])))
     errors.extend(spawn_errors(events, checks.get('spawn_probe')))
     errors.extend(trigger_errors(events, checks.get('triggers', [])))

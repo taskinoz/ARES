@@ -227,3 +227,43 @@ TFO requires the explicitly reported Core135 dialogue/sound compatibility setup
 above. This is not contested capture, recapture, combat, respawn, AI-navigation,
 network or human-match acceptance. Initial placement is controlled; approach
 movement is covered by a separate straight-walk diagnostic.
+
+
+## Native grunt navigation sample
+
+`navigation_probe` accepts a start, goal, expected node count and floor height:
+
+```json
+{"navigation_probe":{"start":[-400,0,1],"goal":[400,0,0],"nodes":8,
+ "floor_z":0,"samples":12,"wait":1,"radius":24,
+ "forbidden_box":[[-64,-144,-1],[64,144,192]]}}
+```
+
+Supply the map's matching `maps/graphs/<map>.ain` beside its BSP/sidecars.
+R1 now stages that exact graph in its owned addon; TFO includes it in the owned
+mod. Both adapters preflight matching v54 graph size, map revision, finite node
+geometry and link framing. They do not certify tail semantics, script version
+or entity CRC. Native graph header/CRC acceptance is a separate gate.
+
+The probe waits naturally for Playing (at most 90 seconds), explicitly enables
+NPCs, spawns one friendly native grunt, disables movement-start animations and
+squad following, and gives it `SendAIToAssaultPoint`. It never sets the NPC's
+position after spawning. Reports require a living start pose within two units,
+expected nodes and at least two reachable neighbors, exactly one living finite
+pose per sample, sampled floor height within two units, and the last two poses
+within the goal radius. Optional `forbidden_box` excludes sampled origins in an
+axis-aligned volume; expand it for the desired hull clearance. It does not
+certify every intervening frame, swept collision, animation appearance, combat,
+other NPC hulls or dynamic/repeated routes. R1 setup is guarded against MCP
+retries. Failures to build/load a graph must not be called navigation passes.
+
+MRVN-Radiant's `tools/respawn/prepare_tf1_navigation.py` generates original floor,
+pillar and node geometry plus checks; it generates no AIN or retail assets.
+The native R1Delta 3.0.5 `updateain` builder needs its initialization hook enabled
+at launch (the local control uses `-r1delta_build_ain_no_existing`). Without it,
+it partially changes connectivity then fails its unknown-node-tail allocation.
+Use an explicit new private output filename with `updateain`; never use its
+`legacy` mode on installed graphs. The native exporter writes CRC zero without
+an existing source graph. The local matched-CRC control takes the expected CRC
+from the owned engine's validation state; a general offline CRC/export workflow
+is still unresolved. No integrity checks were disabled for that control.
