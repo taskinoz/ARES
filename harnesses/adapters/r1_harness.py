@@ -35,6 +35,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tfo_harness import capture_window, collect_internal_capture, expectation_errors, height_expectations, view_errors, validate_masks, TRACE_MASKS  # noqa: E402
+from capture_checks import validate_capture, capture_errors, capture_script
 from mode_checks import validate_mode, mode_errors, mode_script
 from titan_checks import validate_titans, titan_errors, titan_script
 from spawn_checks import validate_spawn, spawn_script, spawn_errors
@@ -85,6 +86,7 @@ def validate_checks(checks):
     if type(checks.get('engine_screenshots', True)) is not bool:
         raise ValueError('engine_screenshots must be a boolean')
     result['mode_check'] = validate_mode(checks.get('mode_check'))
+    result['cp_capture'] = validate_capture(checks.get('cp_capture'), (result['mode_check'] or {}).get('mode'))
     result['titans'] = validate_titans(checks.get('titans', []))
     result['spawn_probe'] = validate_spawn(checks.get('spawn_probe'))
     result['triggers'] = validate_triggers(checks.get('triggers', []))
@@ -410,6 +412,22 @@ def held_view_script(view, token):
     }}'''
 
 
+def run_capture_checks(control, probe, events):
+    if probe is None:
+        return
+    token = uuid.uuid4().hex
+    control.squirrel(f'if (!("ARES_CaptureToken" in getroottable()) || ::ARES_CaptureToken != "{token}") {{' +
+                     capture_script(probe) + f'::ARES_CaptureToken <- "{token}"; thread ARES_RunCapture(GetPlayerArray()[0]);' + '}')
+    deadline = time.monotonic() + 30 + probe.get('ready_wait', 30) + probe.get('samples', 10) * probe.get('wait', 2)
+    while time.monotonic() < deadline:
+        result = control.squirrel('if (::ARES_CaptureDone) { foreach(e in ::ARES_CaptureEvents) printl("[ARES] " + e); printl("[ARES] CAPTURE_DONE"); }')
+        if 'CAPTURE_DONE' in result:
+            events.extend(e for e in result if e != 'CAPTURE_DONE')
+            return
+        time.sleep(.5)
+    raise TimeoutError('Hardpoint capture probe did not finish')
+
+
 def run_mode_checks(control, probe, events):
     if probe is None:
         return
@@ -624,6 +642,7 @@ def attempt(session, checks, output, timeout):
         run_mode_checks(control, checks.get('mode_check'), report['events'])
         if checks.get('spawn_probe') is not None:
             report['events'].extend(control.squirrel('local player=GetPlayerArray()[0];' + spawn_script(checks['spawn_probe'])))
+        run_capture_checks(control, checks.get('cp_capture'), report['events'])
         run_titan_checks(control, checks.get('titans', []), report['events'])
         run_trigger_checks(control, checks.get('triggers', []), report['events'])
         run_checks(control, checks, process.pid, output, report['events'], report['screenshots'],
@@ -640,6 +659,7 @@ def attempt(session, checks, output, timeout):
     finally:
         stop(process, control)
     if report['finished']:
+        report['errors'] += capture_errors(report['events'], checks.get('cp_capture'))
         report['errors'] += mode_errors(report['events'], checks.get('mode_check'))
         report['errors'] += titan_errors(report['events'], checks.get('titans', []))
         report['errors'] += spawn_errors(report['events'], checks.get('spawn_probe'))

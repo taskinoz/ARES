@@ -44,6 +44,7 @@ from pathlib import Path
 from physics_observations import observations, vector as parse_vector
 from tf1_sidecars import require_entity_sidecars
 
+from capture_checks import validate_capture, capture_errors, capture_script
 from sound_definitions import load_sound_sources
 from tfo_cp_dialogue import patch_dialogue, validate_compat
 from mode_checks import validate_mode, mode_errors, mode_script
@@ -223,6 +224,7 @@ SCRIPT = r'''
 // ARES TF1 harness: native probes and screenshots, then quit.
 %TRIGGER_SCRIPT%
 %TITAN_SCRIPT%
+%CAPTURE_SCRIPT%
 ::ARES_TraceMasks <- %TRACE_MASKS%
 ::ARES_HullMasks <- %HULL_MASKS%
 ::ARES_Traces <- %TRACES%
@@ -265,6 +267,8 @@ function ARES_Run( player )
 	ARES_Log( "BEGIN" )
 	%MODE_SCRIPT%
 	%SPAWN_SCRIPT%
+	ARES_RunCapture(player)
+	foreach(e in ARES_CaptureEvents) ARES_Log(e)
 	ARES_RunTitans()
 	foreach(e in ARES_TitanEvents) ARES_Log(e)
 	ARES_RunTriggers(player)
@@ -449,6 +453,7 @@ def validate_masks(values, count, label):
 def write_mod(game, maps, checks, capture_token=None, sound_files=None, repair_hardpoint_sound=False):
     validate_mode(checks.get('mode_check'))
     validate_compat(checks)
+    validate_capture(checks.get('cp_capture'), (checks.get('mode_check') or {}).get('mode'))
     validate_titans(checks.get('titans', []))
     validate_spawn(checks.get('spawn_probe'))
     validate_triggers(checks.get('triggers', []))
@@ -518,7 +523,7 @@ def write_mod(game, maps, checks, capture_token=None, sound_files=None, repair_h
     base = (mods/'TFORevive.Core/mod/scripts/vscripts/_mapspawn.nut').read_bytes()
     (scripts/'_mapspawn.nut').write_bytes(base + b'\nIncludeScript( "ares_tf1_harness", getroottable() )\n')
     sq = lambda rows: '[' + ', '.join('[' + ', '.join(f'{float(v):.3f}' for v in row) + ']' for row in rows) + ']'
-    (scripts/'ares_tf1_harness.nut').write_text(SCRIPT.replace('%MODE_SCRIPT%', mode_script(checks.get('mode_check'))).replace('%TITAN_SCRIPT%', titan_script(checks.get('titans', []), 'tfo')).replace('%SPAWN_SCRIPT%', spawn_script(checks.get('spawn_probe'))).replace('%TRIGGER_SCRIPT%', trigger_script(checks.get('triggers', []))).replace('%TRACES%', sq(checks.get('traces', [])))
+    (scripts/'ares_tf1_harness.nut').write_text(SCRIPT.replace('%CAPTURE_SCRIPT%', capture_script(checks.get('cp_capture'))).replace('%MODE_SCRIPT%', mode_script(checks.get('mode_check'))).replace('%TITAN_SCRIPT%', titan_script(checks.get('titans', []), 'tfo')).replace('%SPAWN_SCRIPT%', spawn_script(checks.get('spawn_probe'))).replace('%TRIGGER_SCRIPT%', trigger_script(checks.get('triggers', []))).replace('%TRACES%', sq(checks.get('traces', [])))
                                                 .replace('%CAPTURE_TOKEN%', capture_token)
                                                 .replace('%ENGINE_SCREENSHOTS%', 'true' if checks.get('engine_screenshots', False) else 'false')
                                                 .replace('%HULLS%', sq(hulls))
@@ -556,6 +561,7 @@ def main():
     checks = json.loads(args.checks.read_text()) if args.checks else {}
     validate_mode(checks.get('mode_check'))
     validate_compat(checks)
+    validate_capture(checks.get('cp_capture'), (checks.get('mode_check') or {}).get('mode'))
     validate_titans(checks.get('titans', []))
     validate_spawn(checks.get('spawn_probe'))
     validate_triggers(checks.get('triggers', []))
@@ -645,6 +651,7 @@ def main():
     new_shots, shot_errors = screenshot_results(args.output, len(checks.get('views', [])), captured)
     events = [line.split('[ARES] ', 1)[1] for line in text.splitlines() if '[ARES] ' in line]
     errors = [line for line in text.splitlines() if 'SCRIPT ERROR' in line or 'CRASH HAS BEEN CAPTURED' in line]
+    errors.extend(capture_errors(events, checks.get('cp_capture')))
     errors.extend(mode_errors(events, checks.get('mode_check')))
     errors.extend(titan_errors(events, checks.get('titans', [])))
     errors.extend(spawn_errors(events, checks.get('spawn_probe')))

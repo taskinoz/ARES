@@ -102,3 +102,7 @@ Core135 CP additionally needs the supplied Hardpoint sound definitions repaired
 at one known commented brace. Use the TFO guide's explicit sound-file/repair
 options; never silence dialogue assertions. Hashes and intervention metadata
 must remain in the report. Initialization does not certify capture or scoring.
+
+The v29 `cp_capture` option tests natural neutral-point capture and team scoring;
+it never sets match state or ownership. See the guides for limits and required
+TFO interventions. Do not promote one capture/hold to whole-mode or match parity.

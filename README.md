@@ -211,3 +211,10 @@ compatibility transform and a repaired supplied sound-definition file; unpatched
 authored and retail launch controls fail. The tool never edits installed Core or
 supplied sources. Capture, scoring, complete audio, navigation and full Phase 2
 release acceptance remain open. The adapter suite passes 127 tests.
+
+
+The shared `cp_capture` check now passes one natural neutral-point capture/hold
+in both runtimes, with native trigger contact and five team points. It does not
+set match state, ownership or scores. TFO's explicit compatibility setup remains
+required. Contested/recapture, other modes, navigation and full release parity
+are still open; 136 adapter tests pass.

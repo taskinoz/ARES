@@ -15,7 +15,7 @@ integration:
   setup: ares
 upstream:
   default_branch: respawn-format-research
-  commit: edea8537689527028dc1a9bbd1c6e32102804d67
+  commit: f8152a6935a6960762e76eb33e13f6174c845787
   readme_path: tools/README.md
   agents_path: AGENTS.md
   skills_path: .agents/skills/inspect-bsp
@@ -25,7 +25,7 @@ verification:
   status: verified
   last_checked: "2026-11-17"
   notes:
-    - "172 format-tool unit tests and 127 adapter tests pass. Embedded entities and ENTITIES01 partitions are syntax checked, including default external tables. Expanded v29 shadow/occlusion streams, texture names and physics framing pass six TF1 references, the TFO lobby and authored fixtures; MRVN-Radiant also revalidates 61 freshly generated v29/v37 BSPs. These checks do not certify native lighting/physics or full compatibility."
+    - "172 format-tool unit tests and 136 adapter tests pass. Embedded entities and ENTITIES01 partitions are syntax checked, including default external tables. Expanded v29 shadow/occlusion streams, texture names and physics framing pass six TF1 references, the TFO lobby and authored fixtures; MRVN-Radiant also revalidates 61 freshly generated v29/v37 BSPs. These checks do not certify native lighting/physics or full compatibility."
 inspection:
   checked_at: "2026-11-12T12:30:00Z"
   method: local-tests-and-runs

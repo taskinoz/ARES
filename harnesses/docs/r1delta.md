@@ -197,3 +197,33 @@ an original Hardpoint room with three triggers, terminals, four assault points
 per objective and pilot spawns. It references the base-game terminal model;
 retail assets are not bundled. Initialization is not capture/scoring, team
 respawn selection, AI navigation or multiplayer acceptance.
+
+
+## Natural Hardpoint capture and team scoring
+
+With `mode_check.mode` set to `cp`, use:
+
+```json
+"cp_capture":{"targetname":"ares_cp_a","origin":[-600,-90,1]}
+```
+
+The probe waits up to `ready_wait` seconds (default 30; 0..30) for the match to
+reach Playing naturally, requires a neutral objective, then places the player
+once inside the authored trigger. It never sets match state, ownership, progress
+or scores. It takes `samples` observations (default 10; 2..20) separated by
+`wait` seconds (default 2; 0.25..5), at most 60 sampling seconds total.
+
+Every sample must be unique, alive, touching the native trigger and within
+`tolerance` units per axis of the requested position (default 4; 0.01..16).
+Capture direction must agree with the player's team, ownership must remain
+friendly once captured and team scores cannot decrease. The final objective
+must be friendly with at least `min_score` new team points (default 1; 1..100).
+Missing/dead/outside samples, a non-neutral start, native script errors or a match
+that does not start fail. R1 guards its asynchronous sampler against MCP retries.
+
+MRVN-Radiant's `prepare_tf1_objectives.py --capture` emits this check. One neutral
+capture/hold passes in both runtimes, gaining five team points in each final run.
+TFO requires the explicitly reported Core135 dialogue/sound compatibility setup
+above. This is not contested capture, recapture, combat, respawn, AI-navigation,
+network or human-match acceptance. Initial placement is controlled; approach
+movement is covered by a separate straight-walk diagnostic.
