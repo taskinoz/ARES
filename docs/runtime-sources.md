@@ -17,8 +17,10 @@ python scripts/discover-tools.py --game r2 --integration local-adapter --json
 
 Repeated `--capability` flags intersect. JSON includes full entries, verification
 notes, commits and documentation. Unsupported game IDs are rejected instead of
-silently returning an empty list. `r4` is not a new ARES contract target: identify
-Valkyrie's exact SDK/build explicitly under R5 routing.
+silently returning an empty list. ARES target IDs follow Respawn's engine naming:
+`r1` Titanfall, `r2` Titanfall 2, `r5` Apex Legends (`tfo` is Titanfall Online).
+There is no `r3`/`r4` target. R5Valkyrie is an Apex Legends (R5) runtime: route it
+under `r5` and record its exact SDK/build and season.
 
 ## Runtime identity matters
 
@@ -29,7 +31,7 @@ Valkyrie's exact SDK/build explicitly under R5 routing.
 | [Ion releases](https://github.com/R2Ion/Ion), [launcher source](https://github.com/r2ion/IonLauncher) | R2 candidate, not an ARES-validated runtime. Release and launcher revisions differ. Release README documents `NSIsVanilla()` instead of compile-time `VANILLA` checks for runtime switching. Recheck UI/server/client initialization and mod identity on Ion. |
 | [Northstar Prime](https://github.com/F1F7Y/NorthstarPrime) | `primedev` reference. Its README warns users must fix their own problems. Do not present it as the maintained Northstar adapter. |
 | [Mauler125 R5 SDK](https://github.com/Mauler125/r5sdk) | Inspected `p4sync` README lists S3 N1094. ARES's legacy SDK 2.3 dedicated adapter is not proof of compatibility with every source revision. |
-| [Valkyrie SDK](https://github.com/r5valkyrie/r5sdk), [organization](https://github.com/orgs/r5valkyrie/repositories) | User identified this ecosystem as R4Valkyrie/later seasons. The inspected SDK README still lists S3 N1094; that repository alone does not resolve later-season compatibility. |
+| [Valkyrie SDK](https://github.com/r5valkyrie/r5sdk), [organization](https://github.com/orgs/r5valkyrie/repositories) | R5 (Apex Legends) later-season runtime. The inspected SDK README still lists S3 N1094; that repository alone does not resolve later-season compatibility. |
 | [KralRindo S21 SDK](https://github.com/kralrindo/s21-r5sdk) | Its `s21-unify` README and `AGENTS.md` explicitly distinguish an S21 client from an S3 dedicated server. This is stronger later-season evidence, but still upstream-documented rather than ARES runtime-verified. |
 
 The S21 SDK names client build `R5pc_r5-211_J12_CL6933961_2024_06_14_13_58`

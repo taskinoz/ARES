@@ -259,6 +259,25 @@ class SessionTests(unittest.TestCase):
         self.assertNotIn('My.Mod', json.loads((profile / 'enabledmods.json').read_text()))
         self.assertEqual(sorted(p.name for p in (profile / 'mods').iterdir()), sorted(nh.CORE_MODS))
 
+    def test_close_collects_only_new_crash_dumps_and_redacts_token(self):
+        session = self.session()
+        session.ensure_profile()
+        logs = session.profile / 'logs'
+        logs.mkdir()
+        (logs / 'nsdump old.dmp').write_bytes(b'old')
+        session.prepare()
+        token = session.controller.token
+        (logs / 'nslog new.txt').write_text(f'Command line: +ares_harness_token {token}\nok\n')
+        (logs / 'nsdump new.dmp').write_bytes(b'new')
+        text = session.close()
+        self.assertNotIn(token, text)
+        saved = (session.output / 'nslog.txt').read_text()
+        self.assertNotIn(token, saved)
+        self.assertIn('<redacted>', saved)
+        self.assertEqual(session.crash_dumps, ['crash/nsdump new.dmp'])
+        self.assertEqual((session.output / 'crash' / 'nsdump new.dmp').read_bytes(), b'new')
+        self.assertFalse((session.output / 'crash' / 'nsdump old.dmp').exists())
+
     def test_existing_profile_backup_is_byte_identical(self):
         session = self.session()
         session.ensure_profile()
@@ -298,6 +317,14 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(result['status'], 'success')
         report['errors'] = ['TRACE 0: expected Z in [0, 1], observed [5]']
         self.assertEqual(nh.build_result(report, time.time(), 'tdm')['status'], 'partial')
+
+    def test_crash_dump_fails_result_and_is_listed(self):
+        report = {'map': 'mp_x', 'loaded': True, 'finished': True, 'checks': [], 'screenshots': [],
+                  'errors': [], 'script_errors': [], 'crash_dumps': ['crash/nsdump.dmp']}
+        result = nh.build_result(report, time.time(), 'tdm')
+        self.assertNotEqual(result['status'], 'success')
+        self.assertIn({'name': 'no crash dumps', 'passed': False}, result['checks'])
+        self.assertIn({'path': 'crash/nsdump.dmp', 'type': 'crash-dump'}, result['artifacts'])
 
 
 if __name__ == '__main__':

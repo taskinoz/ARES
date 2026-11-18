@@ -278,6 +278,8 @@ class Session:
         self.enabled_backup = None
         self.log_start = time.time()
         self.old_logs = set()
+        self.old_dumps = set()
+        self.crash_dumps = []
         self.closed = False
         self.closed_log = ''
         self.profile_lock = self.profile / '.ares-session.lock'
@@ -388,6 +390,7 @@ class Session:
             enable(enabled, name, sorted(versions)[-1])
         enabled_path.write_text(json.dumps(enabled, indent=4))
         self.old_logs = {p.name for p in (self.profile / 'logs').glob('*.txt')} if (self.profile / 'logs').exists() else set()
+        self.old_dumps = {p.name for p in (self.profile / 'logs').glob('*.dmp')} if (self.profile / 'logs').exists() else set()
 
     # -- process ---------------------------------------------------------
     def launch(self):
@@ -409,6 +412,18 @@ class Session:
         if not logs:
             return ''
         return max(logs, key=lambda p: p.stat().st_mtime).read_text('utf-8', 'replace')
+
+    def new_crash_dumps(self):
+        """Crash dumps Northstar wrote to the profile since prepare(); older dumps are ignored."""
+        logs = self.profile / 'logs'
+        if not logs.exists():
+            return []
+        return sorted(p for p in logs.glob('*.dmp') if p.is_file() and p.name not in self.old_dumps)
+
+    def redact(self, text):
+        """Remove this run's controller token (it is on the logged command line)."""
+        token = self.controller.token if self.controller else None
+        return text.replace(token, '<redacted>') if token else text
 
     def script_errors(self, text=None):
         text = self.log_text() if text is None else text
@@ -465,10 +480,14 @@ class Session:
             except subprocess.TimeoutExpired:
                 self.process.kill()
                 self.process.wait(timeout=30)
-        text = self.log_text()
+        text = self.redact(self.log_text())
         if text:
             self.output.mkdir(parents=True, exist_ok=True)
             (self.output / 'nslog.txt').write_text(text, encoding='utf-8')
+        for dump in self.new_crash_dumps():
+            (self.output / 'crash').mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(dump, self.output / 'crash' / dump.name)
+            self.crash_dumps.append('crash/' + dump.name)
         if self.controller is not None:
             self.controller.stop()
         if self.enabled_backup is not None:
@@ -566,9 +585,11 @@ def build_result(report, started, mode):
     checks.append({'name': 'no script errors', 'passed': not report['script_errors']})
     expectation_failures = [e for e in report['errors'] if e.startswith(('TRACE ', 'HULL '))]
     checks.append({'name': 'height expectations', 'passed': not expectation_failures})
+    checks.append({'name': 'no crash dumps', 'passed': not report.get('crash_dumps')})
     passed = all(c['passed'] for c in checks) and not report['errors']
     artifacts = [{'path': name, 'type': 'screenshot'} for name in report['screenshots']]
     artifacts += [{'path': 'report.json', 'type': 'report'}, {'path': 'nslog.txt', 'type': 'log'}]
+    artifacts += [{'path': name, 'type': 'crash-dump'} for name in report.get('crash_dumps', [])]
     return {'schema_version': '1.0', 'tool': 'northstar_harness', 'target': 'r2',
             'operation': f'map-runtime:{report["map"]}:{mode}',
             'status': 'success' if passed else ('partial' if report['loaded'] else 'failure'),
@@ -600,7 +621,7 @@ def main(argv=None):
     args.output.mkdir(parents=True, exist_ok=True)
     started = time.time()
     report = {'map': args.map, 'mode': args.mode, 'loaded': False, 'finished': False, 'events': [],
-              'checks': [], 'screenshots': [], 'errors': [], 'script_errors': []}
+              'checks': [], 'screenshots': [], 'errors': [], 'script_errors': [], 'crash_dumps': []}
     session = Session(args.game, args.output, profile=args.profile, mods=args.mod, maps=args.maps,
                       map_name=args.map, enable_installed=args.enable, hostport=args.hostport)
     text = ''
@@ -613,6 +634,8 @@ def main(argv=None):
     if not text and (args.output / 'nslog.txt').exists():  # Session.close saved it
         text = (args.output / 'nslog.txt').read_text('utf-8', 'replace')
     report['script_errors'] = session.script_errors(text)
+    report['crash_dumps'] = list(session.crash_dumps)
+    report['errors'].extend(f'CRASH: Northstar wrote {name}' for name in report['crash_dumps'])
     report['errors'].extend(e for e in report['script_errors'] if not any(e in seen for seen in report['errors']))
     report['errors'].extend(expectation_errors(report['events'], checks.get('expect', {})))
     (args.output / 'report.json').write_text(json.dumps(report, indent=2))

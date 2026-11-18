@@ -21,7 +21,7 @@ verification:
   status: partial
   last_checked: "2026-11-17"
   notes:
-    - User identified this ecosystem as R4Valkyrie/later seasons, but the inspected SDK README still lists the S3 N1094 build. Treat later-season compatibility as unresolved, not verified.
+    - R5Valkyrie targets later Apex Legends (R5) seasons, but the inspected SDK README still lists the S3 N1094 build. Treat later-season compatibility as unresolved, not verified.
     - No ARES Valkyrie adapter or runtime validation. The r5 catalogue target is routing, not binary, protocol or script compatibility.
     - Inspect the license directory and relevant repository instructions before reuse.
 inspection:
