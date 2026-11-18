@@ -36,6 +36,7 @@ import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tfo_harness import capture_window, collect_internal_capture, expectation_errors, height_expectations, view_errors, validate_masks, TRACE_MASKS  # noqa: E402
 from capture_checks import validate_capture, capture_errors, capture_script
+from screenshots import review_frames
 from mode_checks import validate_mode, mode_errors, mode_script
 from titan_checks import validate_titans, titan_errors, titan_script
 from spawn_checks import validate_spawn, spawn_script, spawn_errors
@@ -698,6 +699,9 @@ def attempt(session, checks, output, timeout):
         report['errors'] += trigger_errors(report['events'], checks.get('triggers', []))
         report['errors'] += expectation_errors(report['events'], checks['expect'])
         report['errors'] += view_errors(report['events'], checks['views'])
+        frames = review_frames(report['screenshots'])
+        report['frames'], report['frame_warnings'] = frames['frames'], frames['warnings']
+        report['errors'] += frames['errors']
     return report
 
 

@@ -27,6 +27,8 @@ checks.json (every key optional):
    "mode_check": true,                 counts spawn, objective and hazard entities
    "views": [[x, y, z, pitch, yaw]],   client camera captures, or with
    "thirdperson": false,               true: views are the player's feet position
+   "engine_screenshots": true,         false: desktop window grabs only
+   "hide_hud": true,                   cl_drawhud 0 while capturing views
    "console": ["sv_cheats 1"],         UI console commands before the checks
    "expect": {"trace_z": [[index, min, max]], "hull_z": [[index, min, max]]}}
 
@@ -57,6 +59,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tfo_harness import capture_window, expectation_errors, height_expectations  # noqa: E402
+from screenshots import engine_name, review_frames, wait_engine_screenshot  # noqa: E402
 
 HARNESS_MOD = 'ARES.MapHarness'
 HARNESS_SOURCE = Path(__file__).resolve().parent / 'northstar' / HARNESS_MOD
@@ -68,7 +71,8 @@ MAP_NAME = re.compile(r'[A-Za-z0-9_]+')
 MODE_NAME = re.compile(r'[A-Za-z0-9_]+')
 PROFILE_NAME = re.compile(r'[A-Za-z0-9_.-]+')
 SCRIPT_ERRORS = ('SCRIPT ERROR', 'COMPILE ERROR', 'SCRIPT COMPILE ERROR')
-CHECK_KEYS = {'settle', 'traces', 'hulls', 'spawn_probe', 'mode_check', 'views', 'thirdperson', 'console', 'expect'}
+CHECK_KEYS = {'settle', 'traces', 'hulls', 'spawn_probe', 'mode_check', 'views', 'thirdperson', 'console', 'expect',
+              'engine_screenshots', 'hide_hud'}
 MAX_BODY = 65536
 
 
@@ -236,7 +240,7 @@ def validate_checks(checks):
     if not isinstance(console, list) or any(
             not isinstance(c, str) or not re.fullmatch(r'[A-Za-z0-9_ .+-]{1,96}', c) for c in console):
         raise ValueError('console must be short console commands')
-    for key in ('mode_check', 'thirdperson'):
+    for key in ('mode_check', 'thirdperson', 'engine_screenshots', 'hide_hud'):
         if type(checks.get(key, False)) is not bool:
             raise ValueError(f'{key} must be true or false')
     expect = checks.get('expect', {})
@@ -465,9 +469,21 @@ class Session:
                         s.get('level') == map_name, timeout, f'{map_name} client ready')
         return generation
 
-    def capture(self, path):
+    def capture(self, path, engine=True):
+        """Save a view to path. Returns 'engine', 'window-fallback' or None.
+
+        The engine screenshot (r2/screenshots/<unique name>.tga) reads the
+        rendered frame without focusing the window; the desktop grab is used
+        only when it doesn't appear.
+        """
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-        return capture_window(self.process.pid, path)
+        if engine:
+            name = engine_name(0)
+            requested = time.time_ns()
+            self.run('ui', 'console', command='screenshot ' + name)
+            if wait_engine_screenshot([self.game / 'r2' / 'screenshots'], name, path, requested):
+                return 'engine'
+        return 'window-fallback' if capture_window(self.process.pid, path) else None
 
     def close(self):
         if self.closed:
@@ -560,6 +576,9 @@ def run_checks(session, checks, mode, report, timeout=300):
         time.sleep(1)
         session.run('ui', 'console', command='thirdperson')
         time.sleep(1)
+    engine = checks.get('engine_screenshots', True)
+    if views and checks.get('hide_hud', True):
+        session.run('ui', 'console', command='cl_drawhud 0')
     for i, v in enumerate(views):
         session.run('ui', 'clear_ui')
         pose = dict(px=float(v[0]), py=float(v[1]), pz=float(v[2]), pitch=float(v[3]), yaw=float(v[4]), roll=0.0)
@@ -570,11 +589,19 @@ def run_checks(session, checks, mode, report, timeout=300):
             session.run('client', 'camera', fov=90.0, **pose)
             time.sleep(1.5)
         path = session.output / f'view{i}.png'
-        captured = session.capture(path)
-        events.append(f'VIEW {i} captured={captured}')
-        if captured:
+        method = session.capture(path, engine=engine)
+        events.append(f'VIEW {i} captured={bool(method)} method={method}')
+        if method:
             report['screenshots'].append(path.name)
-        checks_out.append({'name': f'view[{i}] captured', 'passed': bool(captured)})
+            report.setdefault('capture_methods', {})[str(i)] = method
+        checks_out.append({'name': f'view[{i}] captured', 'passed': bool(method)})
+    if views and checks.get('hide_hud', True):
+        session.run('ui', 'console', command='cl_drawhud 1')
+    frames = review_frames([session.output / name for name in report['screenshots']])
+    report['frames'], report['frame_warnings'] = frames['frames'], frames['warnings']
+    report['errors'] += frames['errors']
+    for frame in frames['frames']:
+        checks_out.append({'name': f'{frame["path"]} not blank or black', 'passed': not frame['problems']})
     report['finished'] = True
 
 

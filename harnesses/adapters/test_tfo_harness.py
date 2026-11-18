@@ -201,6 +201,26 @@ class TfoHarnessTests(unittest.TestCase):
             self.assertEqual(script.count('wait ARES_DropWait'),2)
             self.assertIn('if ( !ARES_DropModels.len() ) prop.SetModel',script)
 
+    def test_freecam_views_place_the_camera_not_the_player(self):
+        with process_directory() as folder:
+            root = Path(folder)
+            maps = root/'maps'
+            maps.mkdir()
+            base = root/'game/Mods/TFORevive.Core/mod/scripts/vscripts'
+            base.mkdir(parents=True)
+            (base/'_mapspawn.nut').write_text('// base')
+            mod = write_mod(root/'game', maps, {'views': [[1500, 0, 800, 20, 180]], 'freecam': True})
+            script = (mod/'mod/scripts/vscripts/ares_tf1_harness.nut').read_text()
+            self.assertIn('::ARES_Freecam <- true', script)
+            self.assertIn('"freecam_setpos " + v[0]', script)
+            self.assertIn('ClientCommand( player, "freecam_disable" )', script)
+            shutil.rmtree(mod)
+            with self.assertRaises(ValueError):
+                write_mod(root/'game', maps, {'views': [[0, 0, 0, 0, 0]], 'freecam': 'yes'})
+        event = 'VIEW 0 freecam=true pose=1500,0,800,20,180'
+        self.assertEqual(view_errors([event], [[1500, 0, 800, 20, 180]]), [])
+        self.assertTrue(view_errors([event, event], [[1500, 0, 800, 20, 180]]))
+
     def test_invalid_drop_probe_configuration_is_rejected_before_install(self):
         with process_directory() as folder:
             root = Path(folder)
