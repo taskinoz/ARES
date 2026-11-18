@@ -451,6 +451,7 @@ class Session:
         return generation
 
     def capture(self, path):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
         return capture_window(self.process.pid, path)
 
     def close(self):
