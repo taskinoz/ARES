@@ -12,7 +12,39 @@ ARES is an agent-first, documentation-driven repository for discovering and orch
 - R2: Titanfall 2 / Northstar
 - R5: Apex Legends / R5Reloaded
 
+### TF1 / R1Delta and TFO compatibility
+
+MRVN-Radiant currently uses one BSP v29 compiler target for both games:
+`remap -game titanfallonline`. ARES tests the runtimes separately. R1Delta needs
+an intermission camera, has a smaller coordinate limit, and mounts different
+content; a successful TFO run does not establish R1Delta compatibility.
+
+Paired collision and rigid-prop support samples pass. One freshly compiled TFO
+water room renders underwater geometry/fog; R1Delta water surfaces now render
+with map-VPK shader caches, while an underwater band remains open. R1 capture cameras now use noclip after normal physics probes to
+prevent gravity drift. Complete lighting, collision, buoyancy, asset packaging,
+gameplay/navigation and human release acceptance are still required. See the
+[TF1/TFO compatibility log](docs/tf1-tfo-compatibility.md) for evidence and gaps.
+
+Current compiler follow-up corrects v29 mesh vertex-type and material-sort span
+metadata against five retail maps. R1 uniquely named UnlitGeneric controls draw
+both water surfaces from staged files, while native Water materials on the same
+BSP fail with only loose resources. A shader-only map VPK now restores those
+surfaces; the underwater band and broader visual parity remain open.
+
+The compiled water room also has a paired wet/dry cardboard buoyancy sample in
+R1Delta and TFO. Dry PHY support and sampled positional rest pass; wet boxes
+continue bobbing. Entity velocity can report zero while props move, so the
+physics diagnostics now offer an independent tail-window translation check.
+TFO sequential drops record samples when requested. This does not establish
+angular rest, broader buoyancy or general physics parity.
+
 ## Principles
+
+Runtime forks, later-season SDKs, developer tools and navigation sources are
+indexed in the [source-routing guide](docs/runtime-sources.md). The
+[2026-11-17 automation audit](docs/research/2026-11-17-automation-audit.md)
+records fixes, tests and remaining verification gaps.
 
 1. One source of truth: upstream repositories own implementation details.
 2. Agent discoverability: `AGENTS.md` is the canonical entry point.
@@ -138,3 +170,64 @@ came from [taskinoz/MRVN-Radiant](https://github.com/taskinoz/MRVN-Radiant).
 `ares/` and `tests/` are MIT; their provenance is in `ares/SOURCES.json`.
 ARES was written with AI; see [AI.md](AI.md) for what was generated and for the
 human-built projects it depends on.
+
+R1 cold-load water surfaces now render when the two supplied compiled Water
+shader caches are in a map VPK; loose shader copies do not work. The explicit
+`pack_tf1_shaders.py` command reproduces the native-tested shader package and
+records hashes without including retail assets. The underwater black band
+remains. R1 prefers verified engine screenshots; TFO engine capture remains
+opt-in after native crashes. Full Phase 2 release acceptance is still open.
+
+Phase 2 validators now check v29 CSM bounds/tree ranges/cycles and required
+embedded entity-partition sidecars before map staging. The underwater band
+persists with top-only water, solid banks and broader world draw flags; no
+speculative compiler change was applied. See the compatibility log for evidence.
+
+
+The v29 validator now checks occlusion/shadow streams, texture name strings and
+physics model/solid framing. Six TF1 references and the TFO lobby pass these
+structural checks. A fresh alive retail R1 underwater reference also has a
+horizon artifact, so the band is not unique to compiled custom maps. Full
+lighting/physics, dependencies, gameplay/navigation and release parity remain
+open; see the TF1/TFO compatibility log for the bounded evidence.
+
+
+The Phase 2 v29 entity reader now checks `ENTITIES01` syntax and honors default
+external partition tables before native staging. Shared `triggers` probes verify
+alive player poses and exact cumulative touch output counts; authored
+axis-aligned and rotated enter/exit sequences plus the initial spawn pose pass
+in both R1Delta and TFO. These controlled
+repositioning probes do not certify normal traversal, objectives or navigation.
+
+Native atlas NPC flat-floor support also passes five samples in both runtimes.
+The shared `titans` check selects their different atlas settings names and rejects
+invalid/dead/missing samples, unsupported poses or excessive sampled motion.
+Titan piloting, combat, curved surfaces and AI navigation remain unverified.
+
+A separate local forward-input control now passes one standing flat-floor trigger
+crossing in both runtimes (one enter, one exit, 16 alive/non-crouched samples).
+This does not change the public `triggers` repositioning semantics or certify
+broader traversal, objectives, navigation or release parity.
+
+
+Explicit Hardpoint initialization now passes with three native objectives and
+terminals in both runtimes. TFO Core135 requires a reported temporary dialogue
+compatibility transform and a repaired supplied sound-definition file; unpatched
+authored and retail launch controls fail. The tool never edits installed Core or
+supplied sources. Capture, scoring, complete audio, navigation and full Phase 2
+release acceptance remain open. The adapter suite passes 127 tests.
+
+
+The shared `cp_capture` check now passes one natural neutral-point capture/hold
+in both runtimes, with native trigger contact and five team points. It does not
+set match state, ownership or scores. TFO's explicit compatibility setup remains
+required. Contested/recapture, other modes, navigation and full release parity
+are still open; 136 adapter tests pass.
+
+
+The shared `navigation_probe` now checks one living native grunt route with a
+supplied matching v54 AIN. The original eight-node pillar fixture routes to and
+holds its goal in R1Delta and TFO. R1 graph sidecars stage in the owned addon;
+both adapters check bounded framing. Native CRC/export automation and broader AI
+remain open; this is one sampled route, not full Phase 2 parity. See the runtime
+guides and compatibility log for explicit NPC controls and retained failures.

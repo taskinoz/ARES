@@ -1,0 +1,30 @@
+id: r5-animation-converter
+name: R5-AnimConv
+description: MDL and RSEQ animation conversion with season-specific input and experimental S21 output limits.
+repository: https://github.com/someoneatemylastsliceofpizza/R5-AnimConv
+targets: [r2, r5]
+categories: [models, conversion]
+capabilities: [animation-conversion, asset-conversion]
+formats: {inputs: [mdl49, mdl53, rseq], outputs: [rrig, rseq]}
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: 6d2ff73da25dc23cab3e458b80f36493689fc68b
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: null
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - README supports MDL v49/v53 input (v49 missing ikrules/movements) and RSEQ seasons 7-28 input. Outputs S3 and experimental S21.
+    - R2 target denotes MDL53 input routing, not an R2 animation output format. No ARES conversions, round-trip or runtime validation performed.
+    - Inspect source and licensing before running or redistributing the tool.
+inspection:
+  checked_at: "2026-11-17"
+  method: git-ls-remote-and-pinned-documents
+  evidence: ["commit:6d2ff73da25dc23cab3e458b80f36493689fc68b", README.md]
+documentation:
+  - https://github.com/someoneatemylastsliceofpizza/R5-AnimConv/blob/6d2ff73da25dc23cab3e458b80f36493689fc68b/README.md

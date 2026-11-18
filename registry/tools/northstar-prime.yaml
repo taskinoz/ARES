@@ -1,0 +1,31 @@
+id: northstar-prime
+name: Northstar Prime reference
+description: Northstar refactor reference on the primedev branch; not a drop-in tested ARES runtime.
+repository: https://github.com/F1F7Y/NorthstarPrime
+targets: [r2]
+categories: [runtime, reference]
+capabilities: [runtime-source]
+formats:
+  inputs: [source]
+  outputs: [runtime]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: primedev
+  commit: e49d88f785372edf0821ed938b93dd28b6e36a9e
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: null
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - README calls this primarily a reference for discussions and warns users must resolve their own issues.
+    - No ARES build, hook parity or runtime validation; inspect the license directory before reuse.
+inspection:
+  checked_at: "2026-11-17"
+  method: github-api-readme-commit
+  evidence: ["commit:e49d88f785372edf0821ed938b93dd28b6e36a9e", README.md]
+documentation:
+  - https://github.com/F1F7Y/NorthstarPrime

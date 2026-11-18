@@ -17,6 +17,12 @@ own script, put `tools/` on `sys.path`.
 
 ## Inspect and validate
 
+For v29, record validation also checks water heights/material indices, world
+light strides and finite fields, lightmap dimensions and SKY/RTL plane lengths,
+probe-reference indices, static-prop probe indices and probe-tree ranges/cycles.
+These layouts are scoped to v29; v37 lighting uses different records. Passing
+them establishes selected structural consistency, not shader or gameplay parity.
+
 | Tool | Does | Example |
 | --- | --- | --- |
 | `inspect_bsp.py` | Header, lump table, overlaps, external `.bsp_lump` files and entity headers | `python tools/inspect_bsp.py map.bsp --hash` |
@@ -117,3 +123,16 @@ The others were written in [taskinoz/MRVN-Radiant](https://github.com/taskinoz/M
 without the map editor. Format research and sources are cited in each module's
 docstring. The cited notes are in that repository's `docs/respawn/` folder. The
 map converters and the `remap` compiler regression suite stay in MRVN-Radiant.
+
+
+The v29 record validator also checks occlusion and opaque/alpha shadow vertex
+streams, mesh-local shadow indices and cumulative triangle ranges, texture name
+string offsets/references, and PHYSICS_COLLIDE model/solid/keydata framing.
+These are structural checks; IVP trees, fluid semantics, CSM object namespaces
+and runtime lighting/physics behavior require separate validation.
+
+The v29 record validator also checks embedded entity KeyValues and declared
+`ENTITIES01` partition syntax through `entity_text.py`. It honors the default
+external partition table and rejects unsafe/case-alias names, missing or linked
+files, malformed blocks and data after NUL. Counts establish syntax coverage,
+not gameplay correctness.

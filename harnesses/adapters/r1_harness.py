@@ -34,7 +34,15 @@ import urllib.request
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from tfo_harness import capture_window, expectation_errors, height_expectations  # noqa: E402
+from tfo_harness import capture_window, collect_internal_capture, expectation_errors, height_expectations, view_errors, validate_masks, TRACE_MASKS  # noqa: E402
+from capture_checks import validate_capture, capture_errors, capture_script
+from mode_checks import validate_mode, mode_errors, mode_script
+from titan_checks import validate_titans, titan_errors, titan_script
+from spawn_checks import validate_spawn, spawn_script, spawn_errors
+from trigger_checks import validate_triggers, trigger_errors, trigger_script
+from tf1_sidecars import require_entity_sidecars  # noqa: E402
+from tf1_ain import navigation_graph
+from navigation_checks import validate_navigation, navigation_script, navigation_errors
 
 ADDON_PREFIX = 'ARES.TF1Harness.'
 OWNER = '.ares-harness-owner.json'
@@ -45,6 +53,7 @@ MAP_NAME = re.compile(r'[A-Za-z0-9_]+')
 MODEL_NAME = re.compile(r'models/[A-Za-z0-9_/-]+\.mdl')
 MODEL_EXTENSIONS = {'.mdl', '.vvd', '.vvc', '.vtx', '.phy', '.ani', '.vcs'}
 PROTOCOL = '2025-06-18'
+AIN_BUILD_FLAG = '-r1delta_build_ain_no_existing'
 BATCH = 120  # rows per Squirrel call; R1Delta captures at most 500 output lines
 
 
@@ -77,8 +86,19 @@ def validate_checks(checks):
         raise ValueError('checks must be a JSON object')
     result = {key: finite_rows(checks.get(key, []), width, key)
               for key, width in (('traces', 6), ('hulls', 12), ('views', 5), ('drops', 3))}
+    if type(checks.get('engine_screenshots', True)) is not bool:
+        raise ValueError('engine_screenshots must be a boolean')
+    result['navigation_probe'] = validate_navigation(checks.get('navigation_probe'))
+    result['mode_check'] = validate_mode(checks.get('mode_check'))
+    result['cp_capture'] = validate_capture(checks.get('cp_capture'), (result['mode_check'] or {}).get('mode'))
+    result['titans'] = validate_titans(checks.get('titans', []))
+    result['spawn_probe'] = validate_spawn(checks.get('spawn_probe'))
+    result['triggers'] = validate_triggers(checks.get('triggers', []))
+    result['engine_screenshots'] = checks.get('engine_screenshots', True)
     if any(row[6 + i] > row[9 + i] for row in result['hulls'] for i in range(3)):
         raise ValueError('hull mins must not exceed maxs')
+    for key, rows in (('trace_masks', 'traces'), ('hull_masks', 'hulls')):
+        result[key] = validate_masks(checks.get(key, []), len(result[rows]), key)
     models = checks.get('drop_models', [])
     if (not isinstance(models, list) or (models and len(models) != len(result['drops'])) or
             any(not isinstance(m, str) or not MODEL_NAME.fullmatch(m) or '..' in m.split('/') for m in models)):
@@ -86,8 +106,11 @@ def validate_checks(checks):
     wait = checks.get('drop_wait', 4)
     if type(wait) not in (int, float) or not math.isfinite(wait) or not 0 < wait <= 120:
         raise ValueError('drop_wait must be a positive duration of at most 120 seconds')
+    sequential = checks.get('drop_sequential', False)
+    if type(sequential) is not bool:
+        raise ValueError('drop_sequential must be a boolean')
     result.update(drop_models=models, drop_wait=float(wait), drop_samples=checks.get('drop_samples', False) is True,
-                  expect=checks.get('expect', {}))
+                  drop_sequential=sequential, expect=checks.get('expect', {}))
     height_expectations(result['expect'])  # reject malformed expectations before launching
     return result
 
@@ -135,7 +158,28 @@ def model_files(source, models):
     return found
 
 
-def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=None):
+def material_files(source):
+    """Stage an explicit materials-only tree; never admit scripts or linked files."""
+    source = resolve_dir(source, 'material files')
+    root = source / 'materials'
+    if not root.is_dir() or linked(root):
+        raise ValueError('material files must contain an unlinked materials/ directory')
+    found = []
+    for folder, directories, files in os.walk(root, followlinks=False):
+        parent = Path(folder)
+        if any(linked(parent / name) for name in directories + files):
+            raise ValueError('linked material paths are not supported')
+        for name in sorted(files):
+            path = parent / name
+            if path.suffix.lower() not in {'.vmt', '.vtf'}:
+                raise ValueError(f'unsupported material file: {path.name}')
+            found.append((path, path.relative_to(source)))
+    if not found:
+        raise ValueError('material files tree is empty')
+    return sorted(found)
+
+
+def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=None, material_source=None):
     """Stage an owned addon with the compiled map (maps=None: a retail map) and,
     when models is not None, a level-init precache script for drop models.
 
@@ -165,15 +209,20 @@ def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=No
     if not re.fullmatch(r'[a-f0-9]{32}', run_id):
         raise ValueError('invalid run ID')
     session = {'run_id': run_id, 'app': str(app), 'game': str(game), 'r1': str(r1), 'map': map_name, 'addon': None}
-    if maps is None and models is None:
+    if maps is None and models is None and material_source is None:
         return session
     staged = model_files(model_source, set(models or ()) | {DEFAULT_MODEL}) if model_source and models is not None else []
+    if material_source is not None:
+        staged += material_files(material_source)
     source = None
+    graph = None
     if maps is not None:
         maps = resolve_dir(maps, 'map build')
         source = maps / 'maps' if (maps / 'maps' / f'{map_name}.bsp').is_file() else maps
         if not (source / f'{map_name}.bsp').is_file():
             raise ValueError(f'missing compiled map: {maps / (map_name + ".bsp")}')
+        require_entity_sidecars(source / f'{map_name}.bsp')
+        graph = navigation_graph(source / f'{map_name}.bsp')
     hook = 'scripts/vscripts/test/myscript.nut'
     if models is not None:
         owners = [app / 'r1delta' / hook] + list((r1 / 'addons').glob('*/' + hook))
@@ -205,6 +254,9 @@ def prepare(app, game, maps, map_name, models=None, run_id=None, model_source=No
                 if item.is_file() and item.name.startswith(map_name) and (
                         item.suffix.lower() in ('.bsp', '.ent', '.bsp_lump') or '.bsp.' in item.name):
                     shutil.copyfile(item, target / item.name)
+        if graph is not None:
+            (target / 'graphs').mkdir()
+            (target / 'graphs' / (map_name + '.ain')).write_bytes(graph)
         for item, relative in staged:
             (addon / relative).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(item, addon / relative)
@@ -337,23 +389,132 @@ def vec(values):
     return 'Vector( ' + ', '.join(f'{float(v):.4f}' for v in values) + ' )'
 
 
-def trace_script(rows, first, hull):
+def trace_script(rows, first, hull, masks=None):
+    masks = validate_masks([] if masks is None else masks, len(rows), 'masks')
     lines = ['local player = GetPlayerArray().len() ? GetPlayerArray()[0] : null']
     for i, t in enumerate(rows, first):
         call = (f'TraceHull( {vec(t[:3])}, {vec(t[3:6])}, {vec(t[6:9])}, {vec(t[9:12])}, player, '
                 if hull else f'TraceLine( {vec(t[:3])}, {vec(t[3:6])}, player, ')
         kind = 'HULL' if hull else 'TRACE'
-        lines.append(f'{{ local r = {call}TRACE_MASK_PLAYERSOLID, TRACE_COLLISION_GROUP_NONE ); '
+        mask = TRACE_MASKS[masks[i - first]] if masks else 'TRACE_MASK_PLAYERSOLID'
+        lines.append(f'{{ local r = {call}{mask}, TRACE_COLLISION_GROUP_NONE ); '
                      f'printl( "[ARES] {kind} {i} fraction=" + r.fraction + " end=" + r.endPos.z + '
                      f'" solid=" + r.startSolid + " normal=" + r.surfaceNormal ) }}')
     return '\n'.join(lines)
 
 
-def run_checks(control, checks, pid, output, events, screenshots):
+def held_view_script(view, token):
+    if not re.fullmatch(r'[a-f0-9]{32}', token):
+        raise ValueError('invalid view ownership token')
+    return '''::ARES_HoldView <- function( p, origin, angles, token ) {
+        p.EndSignal( "OnDestroy" )
+        local deadline = Time() + 60.0
+        while ( ::ARES_ViewToken == token && Time() < deadline ) {
+            p.SetOrigin( origin ); p.SetAngles( angles ); p.SetVelocity( Vector( 0, 0, 0 ) )
+            wait 0
+        }
+    }
+    ''' + f'''if ( !( "ARES_ViewToken" in getroottable() ) || ::ARES_ViewToken != "{token}" ) {{
+        ::ARES_ViewToken <- "{token}"
+        thread ARES_HoldView( GetPlayerArray()[0], {vec(view[:3])},
+                             Vector( {float(view[3])}, {float(view[4])}, 0 ), "{token}" )
+    }}'''
+
+
+def run_capture_checks(control, probe, events):
+    if probe is None:
+        return
+    token = uuid.uuid4().hex
+    control.squirrel(f'if (!("ARES_CaptureToken" in getroottable()) || ::ARES_CaptureToken != "{token}") {{' +
+                     capture_script(probe) + f'::ARES_CaptureToken <- "{token}"; thread ARES_RunCapture(GetPlayerArray()[0]);' + '}')
+    deadline = time.monotonic() + 30 + probe.get('ready_wait', 30) + probe.get('samples', 10) * probe.get('wait', 2)
+    while time.monotonic() < deadline:
+        result = control.squirrel('if (::ARES_CaptureDone) { foreach(e in ::ARES_CaptureEvents) printl("[ARES] " + e); printl("[ARES] CAPTURE_DONE"); }')
+        if 'CAPTURE_DONE' in result:
+            events.extend(e for e in result if e != 'CAPTURE_DONE')
+            return
+        time.sleep(.5)
+    raise TimeoutError('Hardpoint capture probe did not finish')
+
+
+def run_mode_checks(control, probe, events):
+    if probe is None:
+        return
+    token = uuid.uuid4().hex
+    # Cache once without printing: a delayed MCP retry must not emit two sets.
+    control.squirrel(f'if (!("ARES_ModeToken" in getroottable()) || ::ARES_ModeToken != "{token}") {{' +
+                     f'::ARES_ModeToken <- "{token}"; ::ARES_ModeEvents <- [];' + mode_script(probe, capture=True) + '}')
+    events.extend(control.squirrel('foreach(e in ::ARES_ModeEvents) printl("[ARES] " + e);'))
+
+
+def run_navigation_checks(control, probe, events):
+    if probe is None:
+        return
+    token = uuid.uuid4().hex
+    control.squirrel(f'if (!("ARES_NavigationToken" in getroottable()) || ::ARES_NavigationToken != "{token}") {{' +
+                     navigation_script(probe) + f'::ARES_NavigationToken <- "{token}"; thread ARES_RunNavigation(GetPlayerArray()[0]);' + '}')
+    deadline = time.monotonic() + 120 + max(1, probe.get('round_trips', 0) * 2) * probe.get('samples', 12) * probe.get('wait', 1)
+    while time.monotonic() < deadline:
+        result = control.squirrel('if (::ARES_NavigationDone) { foreach(e in ::ARES_NavigationEvents) printl("[ARES] " + e); printl("[ARES] NAVIGATION_DONE"); }')
+        if 'NAVIGATION_DONE' in result:
+            events.extend(e for e in result if e != 'NAVIGATION_DONE')
+            return
+        time.sleep(.5)
+    raise TimeoutError('navigation probe did not finish')
+
+
+def run_titan_checks(control, rows, events):
+    if not rows:
+        return
+    token = uuid.uuid4().hex
+    control.squirrel(f'if (!("ARES_TitanToken" in getroottable()) || ::ARES_TitanToken != "{token}") {{' +
+                     titan_script(rows, 'r1') + f'::ARES_TitanToken <- "{token}"; thread ARES_RunTitans();' + '}')
+    deadline = time.monotonic() + 30 + sum(r.get('samples', 5) * r.get('wait', 1) for r in rows)
+    while time.monotonic() < deadline:
+        result = control.squirrel('if (::ARES_TitanDone) { foreach(e in ::ARES_TitanEvents) printl("[ARES] " + e); printl("[ARES] TITANS_DONE"); }')
+        if 'TITANS_DONE' in result:
+            events.extend(e for e in result if e != 'TITANS_DONE')
+            return
+        time.sleep(.5)
+    raise TimeoutError('titan probes did not finish')
+
+
+def run_trigger_checks(control, rows, events):
+    if not rows:
+        return
+    token = uuid.uuid4().hex
+    # MCP may execute a timed-out call before its retry: guard setup and thread.
+    control.squirrel(f'if (!("ARES_TriggerToken" in getroottable()) || ::ARES_TriggerToken != "{token}") {{' +
+                     trigger_script(rows) + f'::ARES_TriggerToken <- "{token}"; thread ARES_RunTriggers(GetPlayerArray()[0]);' + '}')
+    deadline = time.monotonic() + 30 + sum(len(r['points']) * r.get('wait', 1) for r in rows)
+    while time.monotonic() < deadline:
+        result = control.squirrel('if (::ARES_TriggerDone) { foreach(e in ::ARES_TriggerEvents) printl("[ARES] " + e); printl("[ARES] TRIGGERS_DONE"); }')
+        if 'TRIGGERS_DONE' in result:
+            events.extend(e for e in result if e != 'TRIGGERS_DONE')
+            return
+        time.sleep(.5)
+    raise TimeoutError('trigger probes did not finish')
+
+
+def run_checks(control, checks, pid, output, events, screenshots, game=None, capture_methods=None):
     for key, hull in (('traces', False), ('hulls', True)):
         rows = checks[key]
         for first in range(0, len(rows), BATCH):
-            events += control.squirrel(trace_script(rows[first:first + BATCH], first, hull))
+            masks = checks.get('hull_masks' if hull else 'trace_masks', [])
+            events += control.squirrel(trace_script(rows[first:first + BATCH], first, hull,
+                                                   masks[first:first + BATCH]))
+    if checks.get('drop_sequential') and checks['drops']:
+        # Reuse the guarded single-batch path, retaining original event indices.
+        # Each body's final observation precedes its destruction and next spawn.
+        for index, drop in enumerate(checks['drops']):
+            isolated = dict(checks, traces=[], hulls=[], views=[], drops=[drop], drop_sequential=False,
+                            drop_models=[checks['drop_models'][index]] if checks['drop_models'] else [])
+            single_events = []
+            run_checks(control, isolated, pid, output, single_events, screenshots, game, capture_methods)
+            events.extend(re.sub(r'^(SPAWNED|SAMPLE|DROP) 0\b', lambda m: f'{m[1]} {index}', line)
+                          for line in single_events)
+            control.squirrel('foreach ( p in ::ARES_Drops ) if ( IsValid( p ) ) p.Destroy()')
+        checks = dict(checks, drops=[])
     drops = checks['drops']
     if drops:
         models = checks['drop_models'] or [DEFAULT_MODEL] * len(drops)
@@ -377,7 +538,9 @@ def run_checks(control, checks, pid, output, events, screenshots):
             raise RuntimeError(f'drops {invalid} did not spawn as physics props in R1Delta (models {names}); '
                                'on a compiled map, stage the model files with --model-files')
         report = ('foreach ( i, p in ::ARES_Drops ) { if ( IsValid( p ) ) printl( "[ARES] %s " + i + %s" origin=" + '
-                  'p.GetOrigin() + " velocity=" + p.GetVelocity() ); else printl( "[ARES] %s " + i + " z=gone" ) }')
+                  'p.GetOrigin() + " velocity=" + p.GetVelocity() + " angles=" + p.GetAngles() + '
+                  '" bounds_mins=" + p.GetBoundingMins() + " bounds_maxs=" + p.GetBoundingMaxs() ); '
+                  'else printl( "[ARES] %s " + i + " z=gone" ) }')
         start = time.monotonic()
         while checks['drop_samples'] and time.monotonic() - start < checks['drop_wait']:
             t = round(time.monotonic() - start, 2)
@@ -390,14 +553,42 @@ def run_checks(control, checks, pid, output, events, screenshots):
         control.squirrel('CloseAllMenus()', context='ui')
         control.console('unpause nomsg')
         time.sleep(1)
-    for i, v in enumerate(checks['views']):
-        control.squirrel(f'local p = GetPlayerArray()[0]; p.SetOrigin( {vec(v[:3])} ); '
-                         f'p.SetAngles( Vector( {float(v[3])}, {float(v[4])}, 0 ) ); p.SetVelocity( Vector( 0, 0, 0 ) )')
-        time.sleep(2)
-        path = output / f'view_{i}.png'
-        if capture_window(pid, path):
-            screenshots.append(str(path))
-        events.append(f'VIEW {i}')
+    if not checks['views']:
+        return
+    # This adapter launches a fresh local game. Only the capture phase uses
+    # noclip; all collision/drop probes above ran with normal movement/physics.
+    # Per-frame SetOrigin alone can drift several units between server ticks.
+    control.console('sv_cheats 1')
+    control.console('noclip')
+    try:
+        for i, v in enumerate(checks['views']):
+            token = uuid.uuid4().hex
+            try:
+                control.squirrel(held_view_script(v, token))
+                time.sleep(2)
+                events += control.squirrel(f'local p = GetPlayerArray()[0]; printl( "[ARES] VIEW {i} origin=" + '
+                                           'p.GetOrigin() + " eye=" + p.EyePosition() + " alive=" + IsAlive( p ) )')
+                path = output / f'view_{i}.png'
+                internal = False
+                if game is not None and checks.get('engine_screenshots', False):
+                    name = 'ares_' + token + '_' + str(i)
+                    requested = time.time_ns()
+                    control.console('screenshot ' + name)
+                    for _ in range(8):
+                        time.sleep(.25)
+                        if collect_internal_capture(game, name, path, requested):
+                            internal = True
+                            break
+                if not internal and not capture_window(pid, path):
+                    raise RuntimeError(f'VIEW {i}: screenshot capture failed')
+                if capture_methods is not None:
+                    capture_methods[str(i)] = 'engine' if internal else 'window-fallback'
+                screenshots.append(str(path))
+            finally:
+                control.squirrel(f'if ( "ARES_ViewToken" in getroottable() && ::ARES_ViewToken == "{token}" ) '
+                                 '::ARES_ViewToken = ""')
+    finally:
+        control.console('noclip')
 
 
 def free_port():
@@ -415,6 +606,11 @@ def launch(session, port):
     env['PATH'] = os.pathsep.join([str(p) for p in paths if p.is_dir()] + [env.get('PATH', '')])
     command = [str(app / 'Titanfall.exe'), '-novid', '-usemcp', '-windowed', '-w', '1280', '-h', '720',
                '+developer', '1', '+mcp_start_http', str(port)]
+    build_navigation = session.get('build_navigation', False)
+    if type(build_navigation) is not bool:
+        raise ValueError('build_navigation must be a boolean')
+    if build_navigation:
+        command.insert(1, AIN_BUILD_FLAG)
     return subprocess.Popen(command, cwd=game, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -444,6 +640,8 @@ def attempt(session, checks, output, timeout):
             time.sleep(1)
         control.initialize()
         time.sleep(5)  # let the main menu finish initialising
+        if checks.get('mode_check') is not None:
+            control.console('mp_gamemode ' + checks['mode_check']['mode'])
         control.console('map ' + session['map'])
         while True:
             if process.poll() is not None:
@@ -470,7 +668,16 @@ def attempt(session, checks, output, timeout):
         control.console('unpause nomsg')
         time.sleep(3)
         report['events'].append('BEGIN')
-        run_checks(control, checks, process.pid, output, report['events'], report['screenshots'])
+        report['capture_methods'] = {}
+        run_mode_checks(control, checks.get('mode_check'), report['events'])
+        if checks.get('spawn_probe') is not None:
+            report['events'].extend(control.squirrel('local player=GetPlayerArray()[0];' + spawn_script(checks['spawn_probe'])))
+        run_capture_checks(control, checks.get('cp_capture'), report['events'])
+        run_navigation_checks(control, checks.get('navigation_probe'), report['events'])
+        run_titan_checks(control, checks.get('titans', []), report['events'])
+        run_trigger_checks(control, checks.get('triggers', []), report['events'])
+        run_checks(control, checks, process.pid, output, report['events'], report['screenshots'],
+                   Path(session['game']), report['capture_methods'])
         report['events'].append('DONE')
         report['finished'] = True
     except Exception as error:
@@ -483,7 +690,14 @@ def attempt(session, checks, output, timeout):
     finally:
         stop(process, control)
     if report['finished']:
+        report['errors'] += capture_errors(report['events'], checks.get('cp_capture'))
+        report['errors'] += mode_errors(report['events'], checks.get('mode_check'))
+        report['errors'] += navigation_errors(report['events'], checks.get('navigation_probe'))
+        report['errors'] += titan_errors(report['events'], checks.get('titans', []))
+        report['errors'] += spawn_errors(report['events'], checks.get('spawn_probe'))
+        report['errors'] += trigger_errors(report['events'], checks.get('triggers', []))
         report['errors'] += expectation_errors(report['events'], checks['expect'])
+        report['errors'] += view_errors(report['events'], checks['views'])
     return report
 
 
@@ -497,6 +711,8 @@ def main(argv=None):
     p.add_argument('--model-files', type=Path,
                    help="Loose model tree (e.g. Titanfall Online's assets_dump) to stage drop models from; "
                         'needed for drops on compiled maps')
+    p.add_argument('--material-files', type=Path,
+                   help='Explicit tree containing materials/*.vmt and *.vtf dependencies to stage')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--timeout', type=int, default=300, help='Seconds to start, load and spawn')
     p.add_argument('--attempts', type=int, default=3)
@@ -506,7 +722,8 @@ def main(argv=None):
     checks = validate_checks(json.loads(args.checks.read_text()) if args.checks else {})
     args.output.mkdir(parents=True, exist_ok=True)
     session = prepare(find_app(args.r1delta), find_game(args.game), args.maps, args.map,
-                      checks['drop_models'] if checks['drops'] else None, model_source=args.model_files)
+                      checks['drop_models'] if checks['drops'] else None, model_source=args.model_files,
+                      material_source=args.material_files)
     try:
         for number in range(1, args.attempts + 1):
             report = attempt(session, checks, args.output, args.timeout)

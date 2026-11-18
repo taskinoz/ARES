@@ -11,6 +11,17 @@ rendering, lighting or sky; check those visually in a rendered client.
 
 ## Start the controller
 
+This adapter is for the legacy SDK 2.3 protocol, not AGENTLINK 2. The separately
+registered CafeFPS MCP and split S21-client/S3-server SDK are discovery candidates;
+see [runtime source routing](../../docs/runtime-sources.md). Do not reuse these
+packet encoders against another protocol or infer client rendering from a
+dedicated-server pass.
+
+`r5_harnessctl.py` accepts only a bare explicit-port `http://127.0.0.1` origin,
+rejects credentials/path/query/fragment URLs, bypasses environment proxies and
+does not follow redirects. This prevents connection-file URL tricks or redirects
+from forwarding the bearer token away from the local controller.
+
 ```powershell
 python harnesses/adapters/r5_harness.py --game "F:/Games/R5Reloaded" --state-dir reports/r5-harness
 ```

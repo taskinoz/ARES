@@ -1,0 +1,31 @@
+id: r2recast
+name: R-ex Titanfall 2 Recast
+description: Titanfall 2 navigation-tool candidate; inspect the coordinate-conversion branch before baking or exporting.
+repository: https://github.com/r-ex/r2recast
+targets: [r2]
+categories: [maps, navigation]
+capabilities: [navmesh-generation, navigation-source]
+formats:
+  inputs: [geometry]
+  outputs: [navmesh]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: Change-XZY-to-XYZ-coordinates
+  commit: ec84526bf2ec4a1446ad715e735001f288cc1ac2
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: Zlib
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - Repository metadata and README inspected; README is largely generic Recast documentation, not proof of working Titanfall export.
+    - Coordinate basis, scale, agent bounds and game navmesh version must be checked independently; no ARES bake or runtime validation.
+inspection:
+  checked_at: "2026-11-17"
+  method: github-api-readme-commit
+  evidence: ["commit:ec84526bf2ec4a1446ad715e735001f288cc1ac2", README.md]
+documentation:
+  - https://github.com/r-ex/r2recast

@@ -7,12 +7,14 @@ Binary format research credited in MRVN-Radiant docs/respawn/RESPAWN_SOURCES.md;
 import argparse
 import json
 import math
+import re
 from pathlib import Path
 import struct
 import sys
 
 from inspect_bsp import FormatError, HEADER_SIZE, inspect
 from game_lump import inspect_game_lump
+from entity_text import parse_entities, parse_partition
 from tricoll import check_tricoll_records
 from portals import check_portal_records
 
@@ -35,6 +37,16 @@ SCHEMAS = {
     112: ("H", 0), 113: ("H", 0), 114: ("8h", 0), 115: ("8h", 0), 116: ("2I", 0),
     119: ("3fBBH3fHH", 0), 120: ("H", 0), 121: ("3fI3fI", 0),
     123: ("4I3f", 0),
+}
+
+# v29 only: v37 world lights and probe references have different strides.
+TF1_SCHEMAS = {
+    36: ('2fi', 1), 42: ('3iI', 0), 44: ('I', 0), 54: ('12f3i7f3i', 1),
+    99: ('3fBBH3fHH', 0), 100: ('H', 0),
+    83: ('I2H', 1), 101: ('16h4B4hI', 0), 102: ('H', 0),
+    103: ('2I', 0), 104: ('3fI', 0),
+    117: ('3f', 0), 118: ('H', 0),
+    124: ('3f', 0), 125: ('5f', 0), 126: ('H', 0), 127: ('2I2h', 0),
 }
 
 
@@ -62,7 +74,8 @@ def check_tf2_object_references(records, prop_count):
 def load_records(path, inventory):
     result = {}
     with Path(path).open("rb") as stream:
-        for index, (fmt, version) in SCHEMAS.items():
+        schemas = SCHEMAS | TF1_SCHEMAS if inventory['version_raw'] == 29 else SCHEMAS
+        for index, (fmt, version) in schemas.items():
             if index == 80 and inventory["version_raw"] == 37:
                 fmt = "I3H6b2h2BHI"
             entry = inventory["lumps"][index]
@@ -226,6 +239,268 @@ def check_records(records):
     return issues
 
 
+def check_tf1_csm_records(records):
+    """Check v29 CSM tree structure, without assigning meanings to shadow IDs."""
+    issues = []
+    nodes, references = records[99], records[100]
+    graph = {}
+    def error(index, message):
+        issues.append({'severity': 'error', 'lump': 99, 'record': index, 'message': message})
+    for index, node in enumerate(nodes):
+        mins, maxs = node[:3], node[6:9]
+        children, local_count, total_count, first_child, first_ref = node[3:6] + node[9:11]
+        if (not all(math.isfinite(v) for v in (*mins, *maxs)) or
+                any(lo > hi for lo, hi in zip(mins, maxs))):
+            error(index, 'invalid CSM bounds')
+        if local_count > total_count or first_ref + total_count > len(references):
+            error(index, 'CSM reference range outside CSM_OBJ_REFERENCES')
+        if children:
+            if first_child + children > len(nodes):
+                error(index, 'CSM child range outside CSM_AABB_NODES')
+            else:
+                graph[index] = range(first_child, first_child + children)
+    colors = {}
+    for root in graph:
+        pending = [(root, False)]
+        while pending:
+            index, leaving = pending.pop()
+            if leaving:
+                colors[index] = 2
+            elif colors.get(index) == 1:
+                error(index, 'CSM tree cycle')
+            elif colors.get(index) != 2:
+                colors[index] = 1
+                pending.append((index, True))
+                pending.extend((child, False) for child in graph.get(index, ()))
+    return issues
+
+
+def load_raw_payload(path, inventory, index):
+    """Read one bounded, unencoded lump, preferring its default sidecar."""
+    entry = inventory['lumps'][index]
+    external = next((item for item in entry['external_files'] if item['variant'] == 'default'), None)
+    size = external['size'] if external else entry['length']
+    if size > 256 * 1024 * 1024 or (size and (entry['version'] != 0 or entry['fourcc'])):
+        raise FormatError(f'lump {index}: oversized, encoded or unsupported payload version')
+    if external:
+        data = Path(external['path']).read_bytes()
+    else:
+        if size and (entry['offset'] < HEADER_SIZE or entry['offset'] + size > inventory['size']):
+            raise FormatError(f'lump {index}: embedded payload outside file')
+        with Path(path).open('rb') as stream:
+            stream.seek(entry['offset'])
+            data = stream.read(size)
+    if len(data) != size:
+        raise FormatError(f'lump {index}: truncated payload')
+    return data
+
+
+def check_tf1_entities(path, inventory):
+    """Validate embedded text and required 01* partition syntax, not gameplay."""
+    issues, counts = [], {}
+    def error(message):
+        issues.append({'severity': 'error', 'lump': 24, 'record': None, 'message': message})
+    try:
+        counts['embedded'] = len(parse_entities(load_raw_payload(path, inventory, 0).decode(
+            'utf-8', errors='surrogateescape')))
+    except FormatError as exc:
+        issues.append({'severity': 'error', 'lump': 0, 'record': None, 'message': str(exc)})
+    declaration = load_raw_payload(path, inventory, 24)
+    if not declaration:
+        return issues, counts
+    if len(declaration) > 65536:
+        error('oversized entity partition declaration')
+        return issues, counts
+    try:
+        tokens = declaration.rstrip(b'\0').decode('ascii').split()
+        if (not tokens or tokens[0] != '01*' or len({token.casefold() for token in tokens[1:]}) != len(tokens[1:]) or
+                any(not re.fullmatch(r'[A-Za-z0-9_]+', token) for token in tokens[1:])):
+            raise ValueError('unsupported or duplicate entity partition declaration')
+        for name in tokens[1:]:
+            sidecar = Path(path).with_name(Path(path).stem + '_' + name + '.ent')
+            if (sidecar.is_symlink() or getattr(sidecar, 'is_junction', lambda: False)() or
+                    not sidecar.is_file() or not 0 < sidecar.stat().st_size <= 64 * 1024 * 1024):
+                error(f'missing, empty, linked or oversized entity partition: {sidecar.name}')
+                continue
+            try:
+                counts[name] = len(parse_partition(sidecar.read_bytes()))
+            except FormatError as exc:
+                error(f'{sidecar.name}: {exc}')
+    except (UnicodeError, ValueError) as exc:
+        error(str(exc))
+    return issues, counts
+
+
+def check_tf1_texture_strings(data, table, textures):
+    issues = []
+    def error(lump, index, message):
+        issues.append({'severity': 'error', 'lump': lump, 'record': index, 'message': message})
+    for index, (offset,) in enumerate(table):
+        if not 0 <= offset < len(data):
+            error(44, index, 'texture string offset outside TEXTURE_DATA_STRING_DATA')
+        elif offset and data[offset - 1] != 0:
+            error(44, index, 'texture string offset points inside another string')
+        elif data.find(b'\0', offset) == -1 or data[offset] == 0:
+            error(44, index, 'texture string is empty or unterminated')
+    for index, texture in enumerate(textures):
+        if not 0 <= texture[3] < len(table):
+            error(2, index, 'texture name index outside TEXTURE_DATA_STRING_TABLE')
+    return issues
+
+
+def check_tf1_physics(data, model_count):
+    """Bound model/solid framing and keydata; do not decode IVP collision trees."""
+    issues = []
+    def error(index, message):
+        issues.append({'severity': 'error', 'lump': 29, 'record': index, 'message': message})
+    cursor, seen = 0, set()
+    while cursor < len(data):
+        if len(data) - cursor < 16:
+            error(None, 'truncated physics model header')
+            return issues
+        model, size, keysize, count = struct.unpack_from('<4i', data, cursor)
+        cursor += 16
+        if model == -1:
+            if (size, keysize, count) != (-1, 0, 0) or cursor != len(data):
+                error(None, 'invalid physics terminal header or trailing bytes')
+            return issues
+        if model < 0 or model >= model_count or model in seen:
+            error(model, 'physics model index outside MODELS or duplicated')
+        seen.add(model)
+        if size < 0 or keysize < 0 or count < 0 or size + keysize > len(data) - cursor:
+            error(model, 'physics model payload range outside PHYSICS_COLLIDE')
+            return issues
+        end = cursor + size
+        if count > size // 4:
+            error(model, 'physics solid count exceeds model payload')
+            return issues
+        for _ in range(count):
+            if end - cursor < 4:
+                error(model, 'truncated physics solid length')
+                return issues
+            length, = struct.unpack_from('<i', data, cursor)
+            cursor += 4
+            if length < 4 or length > end - cursor:
+                error(model, 'physics solid range outside model payload')
+                return issues
+            if data[cursor:cursor + 4] != b'VPHY':
+                error(model, 'unsupported physics solid signature')
+            cursor += length
+        if cursor != end:
+            error(model, 'physics solids do not consume model payload')
+        keys = data[end:end + keysize]
+        if keysize and (keys[-1:] != b'\0' or b'\0' in keys[:-1]):
+            error(model, 'physics keydata is not one terminated string')
+        cursor = end + keysize
+    if data:
+        error(None, 'missing physics terminal header')
+    return issues
+
+
+def check_tf1_shadow_records(records):
+    """Check v29 occlusion/shadow streams; shadow-object IDs remain opaque."""
+    issues = []
+    def error(lump, index, message):
+        issues.append({'severity': 'error', 'lump': lump, 'record': index, 'message': message})
+    for lump in (117, 124, 125):
+        for index, vertex in enumerate(records[lump]):
+            if not all(math.isfinite(value) for value in vertex):
+                error(lump, index, 'nonfinite occlusion/shadow vertex')
+    if len(records[118]) % 3:
+        error(118, None, 'occlusion index count is not a triangle list')
+    for index, (vertex,) in enumerate(records[118]):
+        if vertex >= len(records[117]):
+            error(118, index, 'occlusion index outside OCCLUSION_MESH_VERTICES')
+    first = 0
+    indices = records[126]
+    for index, (base, triangles, opaque, material) in enumerate(records[127]):
+        end = first + triangles * 3
+        if opaque not in (0, 1):
+            error(127, index, 'invalid shadow opaque selector')
+        else:
+            pool = records[124 if opaque else 125]
+            if base > len(pool):
+                error(127, index, 'shadow vertex base outside selected pool')
+            if any(base + vertex >= len(pool) for (vertex,) in indices[first:end]):
+                error(127, index, 'shadow mesh-local index outside selected vertex pool')
+        if material < -1 or material >= len(records[82]) or (not opaque and material == -1):
+            error(127, index, 'shadow material outside MATERIAL_SORT')
+        if end > len(indices):
+            error(127, index, 'shadow triangle range outside SHADOW_MESH_INDICES')
+        first = end
+    if first != len(indices):
+        error(126, None, 'shadow mesh triangle counts do not consume index stream')
+    return issues
+
+
+def check_tf1_records(records, inventory):
+    """Known v29 auxiliary layouts; no claim about RTL channel meanings."""
+    issues = check_tf1_csm_records(records) + check_tf1_shadow_records(records)
+    def error(lump, index, message):
+        issues.append({'severity': 'error', 'lump': lump, 'record': index, 'message': message})
+    for i, (surface, bottom, texture) in enumerate(records[36]):
+        if not math.isfinite(surface) or not math.isfinite(bottom) or bottom > surface:
+            error(36, i, 'invalid water height range')
+        if not 0 <= texture < len(records[2]):
+            error(36, i, 'water texture outside TEXTURE_DATA')
+    for i, (_, _, _, water) in enumerate(records[107]):
+        if water < -1 or water >= len(records[36]):
+            error(107, i, 'cell water reference outside LEAF_WATER_DATA')
+    for i, light in enumerate(records[54]):
+        if not all(math.isfinite(v) for v in (*light[:12], *light[15:22])):
+            error(54, i, 'nonfinite world light')
+    for i, (x, y, z, probe) in enumerate(records[104]):
+        if not all(math.isfinite(v) for v in (x, y, z)):
+            error(104, i, 'nonfinite lightprobe reference')
+        if probe >= len(records[101]):
+            error(104, i, 'lightprobe reference outside LIGHTPROBES')
+    for i, (probe,) in enumerate(records[102]):
+        if probe != 0xffff and probe >= len(records[101]):
+            error(102, i, 'static-prop probe outside LIGHTPROBES')
+    graph = {}
+    for i, (word, value) in enumerate(records[103]):
+        first, axis = word >> 2, word & 3
+        if axis == 3:
+            if first + value > len(records[104]):
+                error(103, i, 'lightprobe leaf range outside LIGHTPROBE_REFERENCES')
+        elif first + 1 >= len(records[103]):
+            error(103, i, 'lightprobe child outside LIGHTPROBE_TREE')
+        else:
+            cut = struct.unpack('<f', struct.pack('<I', value))[0]
+            if not math.isfinite(cut):
+                error(103, i, 'nonfinite lightprobe tree split')
+            graph[i] = (first, first + 1)
+    # Iterative traversal: malformed files must not exhaust Python's stack.
+    colors = {}
+    for root in graph:
+        pending = [(root, False)]
+        while pending:
+            node, leaving = pending.pop()
+            if leaving:
+                colors[node] = 2
+            elif colors.get(node) == 1:
+                error(103, node, 'cycle in lightprobe tree')
+            elif not colors.get(node):
+                colors[node] = 1
+                pending.append((node, True))
+                pending.extend((child, False) for child in graph.get(node, ()))
+    texels = 0
+    for i, (_, width, height) in enumerate(records[83]):
+        if not width or not height or width > 16384 or height > 16384:
+            error(83, i, 'invalid lightmap dimensions')
+        texels += width * height
+    for lump, stride in ((98, 8), (105, 4)):
+        entry = inventory['lumps'][lump]
+        external = next((e for e in entry['external_files'] if e['variant'] == 'default'), None)
+        size = external['size'] if external else entry['length']
+        if size != texels * stride:
+            error(lump, None, f'lightmap plane bytes {size}, expected {texels * stride}')
+    for i, sort in enumerate(records[82]):
+        if sort[1] < -1 or sort[1] >= len(records[83]):
+            error(82, i, 'material lightmap outside LIGHTMAP_HEADERS')
+    return issues
+
+
 def validate(path):
     inventory = inspect(path)
     if inventory["version_raw"] not in (29, 37) or inventory["byte_order"] != "little":
@@ -238,6 +513,14 @@ def validate(path):
             "counts": {str(i): len(v) for i, v in records.items()},
             "issues": check_records(records)}
     report["issues"].extend(check_tricoll_records(records, inventory["version_raw"]))
+    if inventory['version_raw'] == 29:
+        report['issues'].extend(check_tf1_records(records, inventory))
+        entity_issues, report['entity_counts'] = check_tf1_entities(path, inventory)
+        report['issues'].extend(entity_issues)
+        report['issues'].extend(check_tf1_texture_strings(
+            load_raw_payload(path, inventory, 43), records[44], records[2]))
+        report['issues'].extend(check_tf1_physics(
+            load_raw_payload(path, inventory, 29), len(records[14])))
     if inventory["version_raw"] == 37:
         report["game_lump"] = inspect_game_lump(path, inventory=inventory)
         # Minimal synthetic fixtures may have no visibility data at all.

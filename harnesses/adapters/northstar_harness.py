@@ -67,9 +67,9 @@ CONTEXTS = ('ui', 'client', 'server')
 MAP_NAME = re.compile(r'[A-Za-z0-9_]+')
 MODE_NAME = re.compile(r'[A-Za-z0-9_]+')
 PROFILE_NAME = re.compile(r'[A-Za-z0-9_.-]+')
-MAP_SUFFIXES = ('.bsp', '.ent', '.bsp_lump')
 SCRIPT_ERRORS = ('SCRIPT ERROR', 'COMPILE ERROR', 'SCRIPT COMPILE ERROR')
 CHECK_KEYS = {'settle', 'traces', 'hulls', 'spawn_probe', 'mode_check', 'views', 'thirdperson', 'console', 'expect'}
+MAX_BODY = 65536
 
 
 class Controller:
@@ -84,6 +84,8 @@ class Controller:
         controller = self
 
         class Handler(BaseHTTPRequestHandler):
+            timeout = 5
+
             def log_message(self, *args):
                 pass
 
@@ -93,11 +95,22 @@ class Controller:
                     self.send_response(403)
                     self.end_headers()
                     return
-                length = int(self.headers.get('Content-Length') or 0)
+                if self.path not in ('/poll/ui', '/poll/client', '/poll/server', '/ack'):
+                    self.send_error(404, 'Unknown endpoint')
+                    return
                 try:
+                    length = int(self.headers.get('Content-Length') or 0)
+                    if not 0 <= length <= MAX_BODY:
+                        self.send_error(413, 'Request body too large')
+                        return
                     body = json.loads(self.rfile.read(length) or b'{}')
+                    if not isinstance(body, dict):
+                        raise ValueError('Expected a JSON object')
+                    if self.path == '/ack' and not isinstance(body.get('id'), str):
+                        raise ValueError('Expected an acknowledgement id')
                 except ValueError:
-                    body = {}
+                    self.send_error(400, 'Invalid request body')
+                    return
                 if self.path.startswith('/poll/') and self.path[6:] in CONTEXTS:
                     context = self.path[6:]
                     with controller.lock:
@@ -190,8 +203,10 @@ def owned(path, token=None):
 
 
 def map_files(build, map_name):
-    files = [f for f in Path(build).iterdir() if f.is_file() and f.name.startswith(map_name) and
-             (f.suffix in MAP_SUFFIXES or f.name.endswith('.bsp_lump'))]
+    files = [f for f in Path(build).iterdir() if f.is_file() and (
+             f.name in (map_name + '.bsp', map_name + '.ent') or
+             (f.name.startswith(map_name + '_') and f.suffix == '.ent') or
+             (f.name.startswith(map_name + '.') and f.name.endswith('.bsp_lump')))]
     if not any(f.name == map_name + '.bsp' for f in files):
         raise FileNotFoundError(f'{build} has no {map_name}.bsp')
     return sorted(files)
@@ -243,7 +258,8 @@ class Session:
                  enable_installed=(), width=1280, height=720, extra_args=(), startup_timeout=240, hostport=37040):
         self.game = Path(game).resolve()
         self.output = Path(output).resolve()
-        if not PROFILE_NAME.fullmatch(profile) or profile.lower() == 'r2northstar':
+        if (not PROFILE_NAME.fullmatch(profile) or profile.endswith('.') or
+                Path(profile).is_reserved() or profile.lower() == 'r2northstar'):
             raise ValueError('use a separate profile name, not R2Northstar')
         self.profile = self.game / profile
         self.mods = [Path(m).resolve() for m in mods]
@@ -262,14 +278,30 @@ class Session:
         self.enabled_backup = None
         self.log_start = time.time()
         self.old_logs = set()
+        self.closed = False
+        self.closed_log = ''
+        self.profile_lock = self.profile / '.ares-session.lock'
+        self.profile_lock_token = None
+
+    def checked_target(self, target):
+        mods = self.profile / 'mods'
+        enabled = self.profile / 'enabledmods.json'
+        if (self.profile.resolve() != self.profile or mods.resolve() != mods or
+                enabled.resolve() != enabled or self.profile_lock.resolve() != self.profile_lock or
+                target.parent != mods or target.resolve() != target):
+            raise ValueError(f'refusing redirected staging path: {target}')
+        return target
 
     # -- profile ---------------------------------------------------------
     def ensure_profile(self):
         """Create the harness profile from the installed Northstar core mods when missing."""
+        self.checked_target(self.profile / 'mods' / HARNESS_MOD)
         launcher = self.game / 'NorthstarLauncher.exe'
         if not launcher.is_file():
             raise FileNotFoundError(f'{launcher} not found; --game must be a Northstar install')
         mods = self.profile / 'mods'
+        if self.profile.exists() and not (self.profile / PROFILE_MARKER).is_file():
+            raise FileExistsError(f'{self.profile} is not an ARES-owned profile; use a new profile name')
         if not self.profile.exists():
             source = self.game / 'R2Northstar' / 'mods'
             mods.mkdir(parents=True)
@@ -287,35 +319,57 @@ class Session:
 
     def install(self, source, mods, token):
         name, version = mod_identity(source)
-        target = mods / source.name
+        target = self.checked_target(mods / source.name)
+        if source.is_relative_to(self.profile) or target.is_relative_to(source):
+            raise ValueError('mod source must be outside its staging destination')
         if target.exists():
             if owned(target):
                 shutil.rmtree(target)  # left behind by an interrupted run
             else:
                 raise FileExistsError(f'{target} exists and is not owned by the harness; remove or rename it')
-        shutil.copytree(source, target, ignore=shutil.ignore_patterns('.git', '__pycache__'))
+        target.mkdir()
         (target / OWNER).write_text(token)
         self.installed.append(target)
+        shutil.copytree(source, target, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns('.git', '__pycache__', OWNER))
         return name, version
 
     def stage_map(self, mods, token):
         name = 'ARES.MapUnderTest'
-        target = mods / name
+        target = self.checked_target(mods / name)
+        files = map_files(self.maps, self.map_name)
         if target.exists():
             if not owned(target):
                 raise FileExistsError(f'{target} exists and is not owned by the harness')
             shutil.rmtree(target)
+        target.mkdir()
+        (target / OWNER).write_text(token)
+        self.installed.append(target)
         (target / 'mod' / 'maps').mkdir(parents=True)
-        for f in map_files(self.maps, self.map_name):
+        for f in files:
             shutil.copyfile(f, target / 'mod' / 'maps' / f.name)
         (target / 'mod.json').write_text(json.dumps({'Name': name, 'Version': '0.0.1', 'LoadPriority': 1,
                                                      'Description': 'Compiled map staged by the ARES harness'}, indent=1))
-        (target / OWNER).write_text(token)
-        self.installed.append(target)
         return name, '0.0.1'
 
     def prepare(self):
+        if self.closed:
+            raise RuntimeError('a closed session cannot be reused')
+        if self.controller is not None:
+            raise RuntimeError('session is already prepared')
+        self.checked_target(self.profile / 'mods' / HARNESS_MOD)
+        try:
+            self._prepare()
+        except BaseException:
+            self.close()
+            raise
+
+    def _prepare(self):
         mods = self.ensure_profile()
+        lock_token = json.dumps({'pid': os.getpid(), 'token': uuid.uuid4().hex})
+        with self.profile_lock.open('x', encoding='utf-8') as lock_file:
+            lock_file.write(lock_token)
+        self.profile_lock_token = lock_token
         self.controller = Controller().start()
         token = self.controller.token
         enabled_path = self.profile / 'enabledmods.json'
@@ -400,6 +454,9 @@ class Session:
         return capture_window(self.process.pid, path)
 
     def close(self):
+        if self.closed:
+            return self.closed_log
+        self.checked_target(self.profile / 'mods' / HARNESS_MOD)
         if self.process is not None and self.process.poll() is None:
             try:
                 self.controller.submit('ui', 'console', command='quit')
@@ -417,8 +474,13 @@ class Session:
             (self.profile / 'enabledmods.json').write_bytes(self.enabled_backup)
         token = self.controller.token if self.controller else None
         for target in self.installed:
+            self.checked_target(target)
             if owned(target, token):
-                shutil.rmtree(target, ignore_errors=True)
+                shutil.rmtree(target)
+        if self.profile_lock_token is not None and self.profile_lock.read_text('utf-8') == self.profile_lock_token:
+            self.profile_lock.unlink()
+        self.closed_log = text
+        self.closed = True
         return text
 
     def __enter__(self):

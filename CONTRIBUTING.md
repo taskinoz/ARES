@@ -23,11 +23,18 @@ in their own repositories and are listed in `registry/`.
 
 ## Skills
 
-Edit skills only in `.agents/skills/<name>/SKILL.md`, then mirror them for Claude Code:
+Edit skills and their supporting resources only in `.agents/skills/<name>/`, then mirror them for Claude Code:
 
 ```powershell
 python scripts/sync-agent-skills.py
 ```
+
+The mirror includes references, scripts and assets, not just `SKILL.md`.
+Redirected/symlinked resources are rejected. Unexpected mirror files and removed
+skills require manual review; the synchronizer never deletes them automatically.
+Run `--check` for a read-only CI/local gate. No Git or provider hooks are installed
+automatically by ARES; keep any local hook opt-in and run the validation commands
+below rather than deploying mods or launching games from a commit hook.
 
 ## Validation
 

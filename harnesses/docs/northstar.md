@@ -8,6 +8,29 @@ executes jobs. It does nothing unless the game is started with
 `-allowlocalhttp`, `ares_harness_enabled 1` and a token. On the server it
 switches off master-server reporting while the harness is active.
 
+## Isolation and recovery
+
+The harness accepts only a new profile or an existing ARES-owned profile, never
+an arbitrary player/dedicated profile. Dot/device/trailing-dot names and
+redirected profile, mod, enabled-state or lock paths are rejected. Do not add an
+ownership marker to an existing player profile to bypass the check.
+
+An exclusive `.ares-session.lock` records the controller process PID and an
+ownership token. Concurrent sessions must use different profiles. An interrupted
+run may leave a lock: inspect its PID and confirm the owning session/game has
+ended before manually removing it. Never remove a live session's lock or stop a
+game/server you did not launch. `prepare()` rolls back partial mod copies on
+failure; `close()` is idempotent and closed sessions cannot be reused.
+
+The loopback controller requires a bearer token, known endpoint, JSON object and
+a body no larger than 64 KiB. The early server initialization hook now requires
+the token and HTTP opt-ins before changing local-server settings. These changes
+have offline regression coverage, and the opted-in guard path was verified
+natively on Northstar 1.31.15 (`mp_glitch`, 2026-11-18).
+
+Ion and Prime are source references, not validated adapter replacements. See
+[runtime source routing](../../docs/runtime-sources.md).
+
 ## Requirements
 
 - Windows, Titanfall 2 with Northstar installed (`NorthstarLauncher.exe` in the

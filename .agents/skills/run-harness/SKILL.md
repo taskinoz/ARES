@@ -34,6 +34,10 @@ screenshots are `partial`.
 
 ## 2. Check the environment first
 
+- Identify the runtime fork and exact build, not only the game. The Northstar
+  adapter is not verified for Ion or Prime; R5Reloaded SDK 2.3 evidence does not
+  cover Valkyrie or later Apex seasons. Consult `docs/runtime-sources.md` before
+  adapting hooks or protocols. Stop at static checks if no matching runtime is available.
 - Confirm the game folder exists. Ask the user for it if it's unknown; don't
   search whole drives. Northstar: `$ARES_R2_GAME`, or the folder that holds
   `NorthstarLauncher.exe`.
@@ -43,6 +47,9 @@ screenshots are `partial`.
   players. Northstar runs alongside one with `-multiple` and `--hostport 37040`.
 - Run the static checks from the `inspect-bsp` skill first. They are cheaper
   and they explain many runtime failures.
+- Northstar refuses existing profiles without its ownership marker. Choose a new
+  isolated profile rather than marking a player/server profile as harness-owned.
+  Failed preparation rolls back staged mods; do not reuse a closed Session.
 
 ## 3. Write checks.json
 
@@ -55,7 +62,11 @@ Start small: one downward trace where you know the floor height, plus one view.
 ```
 
 Northstar also accepts `spawn_probe`, `mode_check`, `settle`, `console`
-and `thirdperson`. TFO/R1Delta accept `drops`, `drop_models` and `drop_wait`.
+and `thirdperson`. TFO/R1Delta accept `drops`, `drop_models`, `drop_wait`, initial `spawn_probe`
+authored `triggers` output checks, native atlas `titans` support probes and
+explicit `mode_check` initialization checks. See their guides for the v29 schemas;
+Northstar's `spawn_probe` schema differs. Trigger checks use controlled repositioning,
+not normal traversal.
 
 ## 4. Run and read the result
 
@@ -87,3 +98,25 @@ their observed values, the artifacts, and what was **not** verified (e.g.
 | R1Delta match never starts | Map lacks `info_intermission` |
 | R1Delta drops never appear | Model not in the map's VPK; pass `--model-files` |
 | Black or wrong screenshot | Window hidden or covered (firewall prompt, other window) |
+
+
+TFO Core135 CP has a duplicate dialogue-registration fault reproduced by authored
+and retail launch controls. See the TFO guide for the explicit temporary
+`tfo_cp_dialogue_compat` intervention. Reports label it; do not call a patched
+run an unmodified-Core pass. Never edit installed Core scripts for this test.
+
+Core135 CP additionally needs the supplied Hardpoint sound definitions repaired
+at one known commented brace. Use the TFO guide's explicit sound-file/repair
+options; never silence dialogue assertions. Hashes and intervention metadata
+must remain in the report. Initialization does not certify capture or scoring.
+
+The v29 `cp_capture` option tests natural neutral-point capture and team scoring;
+it never sets match state or ownership. See the guides for limits and required
+TFO interventions. Do not promote one capture/hold to whole-mode or match parity.
+
+
+The v29 `navigation_probe` tests one sampled native grunt route with a supplied
+matching graph. See the runtime guides for graph framing limits, CRC/export
+caveats and explicit NPC controls. Node count/connectivity alone is not a route
+pass. Final arrival/hold and living floor/optional obstacle samples must pass;
+this does not establish general AI, continuous swept collision or combat parity.

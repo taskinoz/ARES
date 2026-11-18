@@ -8,7 +8,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from tfo_harness import SCRIPT, MOD, main, CrashHandlers, game_crashed, target_map_loaded, target_map_started, write_mod, expectation_errors, height_expectations
+from tfo_harness import SCRIPT, MOD, main, CrashHandlers, game_crashed, target_map_loaded, target_map_started, write_mod, expectation_errors, height_expectations, screenshot_results, view_errors
 
 
 @contextmanager
@@ -41,6 +41,63 @@ def close_process(process):
 
 
 class TfoHarnessTests(unittest.TestCase):
+    def test_missing_entity_sidecar_fails_before_mod_install(self):
+        from test_tf1_sidecars import write_bsp
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            maps = root / 'maps'
+            maps.mkdir()
+            write_bsp(maps / 'mp_probe.bsp')
+            with self.assertRaisesRegex(ValueError, 'mp_probe_spawn.ent'):
+                write_mod(root / 'game', maps, {})
+            self.assertFalse((root / 'game/Mods' / MOD).exists())
+
+    def test_internal_capture_requires_owned_fresh_decodable_image(self):
+        from PIL import Image
+        from tfo_harness import collect_internal_capture
+        with tempfile.TemporaryDirectory() as folder:
+            game = Path(folder)
+            screenshots = game/'Data/screenshots'
+            screenshots.mkdir(parents=True)
+            name = 'ares_' + 'a' * 32 + '_0'
+            source = screenshots/(name + '.jpg')
+            target = game/'view.png'
+            source.write_bytes(b'incomplete')
+            self.assertFalse(collect_internal_capture(game, name, target, 0))
+            Image.new('RGB', (16, 16), 'red').save(source)
+            self.assertFalse(collect_internal_capture(game, name, target, time.time_ns() + 10**9))
+            self.assertTrue(source.exists())
+            self.assertTrue(collect_internal_capture(game, name, target, 0))
+            self.assertFalse(source.exists())
+            with Image.open(target) as frame:
+                self.assertEqual(frame.size, (16, 16))
+            with self.assertRaises(ValueError):
+                collect_internal_capture(game, '../user-image', target, 0)
+
+    def test_old_output_images_cannot_satisfy_a_failed_capture(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'view0.png').write_bytes(b'old')
+            (root / 'view99.png').write_bytes(b'old')
+            shots, errors = screenshot_results(root, 2, set())
+            self.assertEqual(shots, [])
+            self.assertEqual(len(errors), 2)
+            shots, errors = screenshot_results(root, 2, {'0', '1'})
+            self.assertEqual([p.name for p in shots], ['view0.png'])
+            self.assertEqual(len(errors), 1)  # view1 has no file despite a claimed capture
+            self.assertEqual(screenshot_results(root, 0, set()), ([], []))
+
+    def test_missing_or_drifting_view_pose_cannot_pass(self):
+        view = [[0, 0, 128, 0, 90]]
+        valid = 'VIEW 0 origin=(vector : (0, 0, 127.6)) eye=(vector : (0, 0, 187.6)) alive=true'
+        self.assertEqual(view_errors([valid], view), [])
+        for event in (valid.replace('alive=true', 'alive=false'), valid.replace(' alive=true', ''),
+                      valid.replace('187.6', 'nan')):
+            self.assertTrue(view_errors([event], view))
+        for events in ([], ['VIEW 0'], [valid, valid], [valid.replace('127.6', '0.0')],
+                       [valid.replace('127.6', 'nan')]):
+            self.assertTrue(view_errors(events, view))
+
     def test_failed_launch_restores_enabled_mod_bytes(self):
         with process_directory() as folder:
             root = Path(folder)
@@ -64,7 +121,18 @@ class TfoHarnessTests(unittest.TestCase):
     def test_geometry_sweeps_ignore_the_harness_player(self):
         calls = [line for line in SCRIPT.splitlines() if 'local result = Trace' in line]
         self.assertEqual(len(calls),2)
-        self.assertTrue(all(', player, TRACE_MASK_PLAYERSOLID' in line for line in calls))
+        self.assertTrue(all(', player, mask,' in line for line in calls))
+        self.assertIn('ARES_TraceMasks[i] : TRACE_MASK_PLAYERSOLID', SCRIPT)
+        self.assertIn('ARES_HullMasks[i] : TRACE_MASK_PLAYERSOLID', SCRIPT)
+
+    def test_trace_masks_are_allowlisted_and_match_rows(self):
+        from tfo_harness import validate_masks
+        self.assertEqual(validate_masks([], 2, 'test'), [])
+        self.assertEqual(validate_masks(['shot', 'water'], 2, 'test'), ['shot', 'water'])
+        for values in (None, 'shot', ['solid'], ['shot', None], ['shot', 1],
+                       ['shot', 'unknown'], ['shot', 'water);evil()']):
+            with self.assertRaises(ValueError):
+                validate_masks(values, 2, 'test')
 
     def test_lobby_loading_does_not_count_as_target(self):
         text = ('Raw command line: +map mp_test\n'

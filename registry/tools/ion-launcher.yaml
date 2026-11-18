@@ -1,0 +1,34 @@
+id: ion-launcher
+name: Ion launcher source
+description: Titanfall 2 Northstar fork with runtime vanilla switching; separate implementation and release repositories.
+repository: https://github.com/r2ion/IonLauncher
+targets: [r2]
+categories: [runtime, reference]
+capabilities: [runtime-source, scripting-reference]
+formats:
+  inputs: [source, northstar-mod]
+  outputs: [runtime]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: ion
+  commit: ae960ecc405b81e2eae307e9c0e318388daa39ea
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - Source metadata and Ion release README inspected; no ARES Ion runtime validation.
+    - Ion release README directs scripts to NSIsVanilla() instead of compile-time VANILLA checks; do not assume Northstar UI hooks are interchangeable.
+    - Release repository r2ion/Ion revision 5f73efa5c12b82d906182382805ca8456d3425a0 is distinct from the launcher source revision.
+inspection:
+  checked_at: "2026-11-17"
+  method: github-api-readme-commit
+  evidence: ["commit:ae960ecc405b81e2eae307e9c0e318388daa39ea", "r2ion/Ion@5f73efa5c12b82d906182382805ca8456d3425a0:README.md"]
+documentation:
+  - https://github.com/R2Ion/Ion
+  - https://github.com/R2Ion
+  - https://github.com/r2ion/IonLauncher/blob/ae960ecc405b81e2eae307e9c0e318388daa39ea/BUILD.md

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import yaml
@@ -23,6 +24,23 @@ def entries():
 
 
 class RegistryValidationTests(unittest.TestCase):
+    def test_validator_rejects_filename_mismatch(self):
+        module = load_module()
+        path, entry = entries()[0]
+        with patch.object(module, 'load_registry_entries', return_value=[(path.with_name('wrong.yaml'), entry)]):
+            with self.assertRaisesRegex(ValueError, 'filename'):
+                module.validate_registry()
+
+    def test_validator_rejects_missing_and_escaping_local_paths(self):
+        module = load_module()
+        path, original = next((path, entry) for path, entry in entries()
+                              if entry['integration']['type'] == 'local-adapter')
+        for value in ('../outside', 'does-not-exist', ''):
+            entry = dict(original, upstream=dict(original['upstream'], harness_path=value))
+            with self.subTest(value=value), patch.object(module, 'load_registry_entries', return_value=[(path, entry)]):
+                with self.assertRaisesRegex(ValueError, 'inside ARES'):
+                    module.validate_registry()
+
     def test_registry_validation_passes(self):
         module = load_module()
         module.validate_registry()

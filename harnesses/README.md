@@ -8,6 +8,9 @@ only that a file parses.
 All adapters live in [`adapters/`](adapters/) as standalone Python 3.10+ scripts.
 Each prints its options with `--help`.
 
+See [TF1/TFO compatibility evidence](../docs/tf1-tfo-compatibility.md) for the
+current Phase 2 validation scope and remaining acceptance gates.
+
 | Target | Adapter | Game control | Guide |
 | --- | --- | --- | --- |
 | R2: Titanfall 2 / Northstar | `northstar_harness.py` | Loopback HTTP; `ARES.MapHarness` mod polls it | [northstar.md](docs/northstar.md) |

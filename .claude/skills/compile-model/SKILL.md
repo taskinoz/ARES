@@ -14,3 +14,9 @@ description: Compile models with the registered Respawn compilers and validate t
    `validate-r5-collision`). When rebuilding an original, compare against it.
 5. Get runtime evidence with the target's harness (`run-harness`).
 6. Report the compiler commit/hash, commands, checks and verification level.
+
+For additional compilers, query `python scripts/discover-tools.py --game r5 --capability model-compilation --json`.
+The `studiormdl` entry documents S3 RMDL v54 subversion 10 and is not ARES runtime
+validated. Match subversion, rig/sequence layout and physics framing explicitly;
+`v54` alone is not a compatibility guarantee. See `docs/runtime-sources.md` for
+S21-client versus S3-server routing before choosing the validation environment.
