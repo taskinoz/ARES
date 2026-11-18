@@ -41,6 +41,11 @@ angular rest, broader buoyancy or general physics parity.
 
 ## Principles
 
+Runtime forks, later-season SDKs, developer tools and navigation sources are
+indexed in the [source-routing guide](docs/runtime-sources.md). The
+[2026-11-17 automation audit](docs/research/2026-11-17-automation-audit.md)
+records fixes, tests and remaining verification gaps.
+
 1. One source of truth: upstream repositories own implementation details.
 2. Agent discoverability: `AGENTS.md` is the canonical entry point.
 3. Cross-game awareness: target compatibility must be explicit.

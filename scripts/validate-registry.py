@@ -25,7 +25,7 @@ def load_registry_entries() -> list[tuple[Path, dict]]:
 
 def validate_registry() -> None:
     schema = load_schema()
-    validator = jsonschema.Draft202012Validator(schema)
+    validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
 
     ids: set[str] = set()
     for path, entry in load_registry_entries():
@@ -34,6 +34,16 @@ def validate_registry() -> None:
         if tool_id in ids:
             raise ValueError(f"Duplicate tool id detected: {tool_id} ({path})")
         ids.add(tool_id)
+        if path.stem != tool_id:
+            raise ValueError(f"Registry filename must match tool id: {path} ({tool_id})")
+        if entry["integration"]["type"] == "local-adapter":
+            for key in ("readme_path", "agents_path", "skills_path", "harness_path"):
+                value = entry["upstream"][key]
+                if value is None:
+                    continue
+                candidate = (ROOT / value).resolve()
+                if not value or not candidate.is_relative_to(ROOT) or not candidate.exists():
+                    raise ValueError(f"{path}: {key} must point inside ARES to an existing file or directory: {value}")
 
     if not ids:
         raise ValueError("No registry entries found.")

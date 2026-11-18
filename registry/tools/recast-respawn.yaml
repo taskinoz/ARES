@@ -1,0 +1,32 @@
+id: recast-respawn
+name: Mauler125 Recast Navigation
+description: Recast and Detour source for navigation mesh generation and queries; candidate for Apex and Titanfall 2 navigation workflows.
+repository: https://github.com/Mauler125/recastnavigation
+targets: [r2, r5]
+categories: [maps, navigation]
+capabilities: [navmesh-generation, navigation-source]
+formats:
+  inputs: [geometry]
+  outputs: [navmesh]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: f709bdce20ee563340cf93eb7a715a85c7277ae8
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: Zlib
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - README confirms Recast generation and Detour queries; it does not establish target-specific export or file compatibility.
+    - No ARES bake, binary-format or runtime pathfinding validation; do not assume generic Detour output loads in either game.
+inspection:
+  checked_at: "2026-11-17"
+  method: github-api-readme-commit
+  evidence: ["commit:f709bdce20ee563340cf93eb7a715a85c7277ae8", README.md, Docs/_2_BuildingAndIntegrating.md]
+documentation:
+  - https://github.com/Mauler125/recastnavigation
+  - https://github.com/Mauler125/recastnavigation/blob/f709bdce20ee563340cf93eb7a715a85c7277ae8/Docs/_2_BuildingAndIntegrating.md

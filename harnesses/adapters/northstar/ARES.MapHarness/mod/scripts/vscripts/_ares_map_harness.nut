@@ -90,7 +90,8 @@ void function AresMapHarness_Init()
 #if SERVER
     // Server autoexec resets these each map. Apply before client authentication,
     // rather than after the delayed HTTP startup.
-    if ( GetConVarBool( "ares_harness_enabled" ) && GetConVarString( "ip" ) == "127.0.0.1" )
+    if ( GetConVarBool( "ares_harness_enabled" ) && GetConVarString( "ip" ) == "127.0.0.1"
+        && GetConVarString( "ares_harness_token" ) != "" && NSIsHttpEnabled() && NSIsLocalHttpAllowed() )
     {
         SetConVarBool( "ns_auth_allow_insecure", true )
         SetConVarBool( "ns_report_server_to_masterserver", false )

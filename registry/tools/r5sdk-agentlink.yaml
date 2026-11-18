@@ -1,0 +1,30 @@
+id: r5sdk-agentlink
+name: CafeFPS R5 SDK agent-link MCP
+description: Opt-in token-authenticated local SDK control over AGENTLINK 2, not legacy RCON.
+repository: https://github.com/CafeFPS/r5sdk-mcp
+targets: [r5]
+categories: [testing, runtime]
+capabilities: [agent-control, scripting-reference]
+formats: {inputs: [agentlink-v2], outputs: [json, png, log]}
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: master
+  commit: 444c3b4abf413f740a25731f883cc86d561d3a3e
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - Pinned README documents Windows, Node 18+, SDK agent-link protocol 2, matching agent/ scripts and explicit -devsdk or -agentlink opt-in.
+    - Repository description mentions RCON but the current README explicitly says RCON is not used; follow the pinned protocol, not the description.
+    - Per-launch tokens and separate server/client loopback links; never expose or forward ports. No MCP installation, ARES adapter or runtime validation performed.
+inspection:
+  checked_at: "2026-11-17"
+  method: git-ls-remote-and-pinned-documents
+  evidence: ["commit:444c3b4abf413f740a25731f883cc86d561d3a3e", README.md]
+documentation:
+  - https://github.com/CafeFPS/r5sdk-mcp/blob/444c3b4abf413f740a25731f883cc86d561d3a3e/README.md

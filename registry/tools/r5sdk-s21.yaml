@@ -1,0 +1,31 @@
+id: r5sdk-s21
+name: KralRindo S21-client and S3-server SDK
+description: Split-product Apex SDK; distinct S21 client and S3 dedicated server ABIs on s21-unify.
+repository: https://github.com/kralrindo/s21-r5sdk
+targets: [r5]
+categories: [runtime, reference]
+capabilities: [runtime-source, scripting-reference]
+formats: {inputs: [source], outputs: [runtime]}
+integration: {type: external-repository, harness: unverified, agent_instructions: partially-verified, setup: upstream}
+upstream:
+  default_branch: s21-unify
+  commit: 10077bbf020292fa0bab69d9a9a05fef125d6ba5
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: null
+  license: null
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - README supports S21 R5pc_r5-211_J12_CL6933961_2024_06_14_13_58 client and S3 R5pc_r5launch_N1094_CL456479_2019_10_30_05_20_PM dedicated server.
+    - AGENTS.md distinguishes product macros, PCHs, layouts and hook ownership. No ARES build or runtime validation; do not reuse legacy RCON or binary offsets without checking the product.
+    - Follow license/ and NOTICE before reuse; no runtime or asset deployment was performed.
+inspection:
+  checked_at: "2026-11-17"
+  method: git-ls-remote-and-pinned-documents
+  evidence: ["commit:10077bbf020292fa0bab69d9a9a05fef125d6ba5", README.md, AGENTS.md]
+documentation:
+  - https://github.com/kralrindo/s21-r5sdk/blob/10077bbf020292fa0bab69d9a9a05fef125d6ba5/README.md
+  - https://github.com/kralrindo/s21-r5sdk/blob/10077bbf020292fa0bab69d9a9a05fef125d6ba5/AGENTS.md

@@ -34,6 +34,10 @@ screenshots are `partial`.
 
 ## 2. Check the environment first
 
+- Identify the runtime fork and exact build, not only the game. The Northstar
+  adapter is not verified for Ion or Prime; R5Reloaded SDK 2.3 evidence does not
+  cover Valkyrie or later Apex seasons. Consult `docs/runtime-sources.md` before
+  adapting hooks or protocols. Stop at static checks if no matching runtime is available.
 - Confirm the game folder exists. Ask the user for it if it's unknown; don't
   search whole drives. Northstar: `$ARES_R2_GAME`, or the folder that holds
   `NorthstarLauncher.exe`.
@@ -43,6 +47,9 @@ screenshots are `partial`.
   players. Northstar runs alongside one with `-multiple` and `--hostport 37040`.
 - Run the static checks from the `inspect-bsp` skill first. They are cheaper
   and they explain many runtime failures.
+- Northstar refuses existing profiles without its ownership marker. Choose a new
+  isolated profile rather than marking a player/server profile as harness-owned.
+  Failed preparation rolls back staged mods; do not reuse a closed Session.
 
 ## 3. Write checks.json
 

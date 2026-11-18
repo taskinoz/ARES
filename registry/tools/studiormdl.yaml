@@ -1,0 +1,29 @@
+id: studiormdl
+name: zeex64 StudioRMDL
+description: Incomplete QC model compiler targeting Apex S3 RMDL v54 subversion 10, with animation conversion support.
+repository: https://github.com/zeex64/studiormdl
+targets: [r5]
+categories: [models, compilation]
+capabilities: [model-compilation, animation-conversion]
+formats: {inputs: [qc, smd], outputs: [rmdl, vg, phy, rseq, rrig]}
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: c74cc68846354739aa49b31a51ba9655f1fd7b52
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: null
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - README specifies S3 RMDL v54 subversion 10 and warns the compiler is incomplete. Do not infer S21 compilation support from its Valkyrie association.
+    - No ARES build, format-reader compatibility, collision or runtime validation performed; inspect licensing before reuse.
+inspection:
+  checked_at: "2026-11-17"
+  method: git-ls-remote-and-pinned-documents
+  evidence: ["commit:c74cc68846354739aa49b31a51ba9655f1fd7b52", README.md]
+documentation:
+  - https://github.com/zeex64/studiormdl/blob/c74cc68846354739aa49b31a51ba9655f1fd7b52/README.md

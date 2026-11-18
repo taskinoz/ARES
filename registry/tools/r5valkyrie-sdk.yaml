@@ -1,0 +1,34 @@
+id: r5valkyrie-sdk
+name: R5Valkyrie SDK reference
+description: Valkyrie SDK source reference; game build and season compatibility require independent evidence.
+repository: https://github.com/r5valkyrie/r5sdk
+targets: [r5]
+categories: [runtime, reference]
+capabilities: [runtime-source, scripting-reference]
+formats:
+  inputs: [source]
+  outputs: [runtime]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: c775a0bb1dc7c3bb9f19888e7cd90426093406a8
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: null
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - User identified this ecosystem as R4Valkyrie/later seasons, but the inspected SDK README still lists the S3 N1094 build. Treat later-season compatibility as unresolved, not verified.
+    - No ARES Valkyrie adapter or runtime validation. The r5 catalogue target is routing, not binary, protocol or script compatibility.
+    - Inspect the license directory and relevant repository instructions before reuse.
+inspection:
+  checked_at: "2026-11-17"
+  method: github-api-readme-commit
+  evidence: ["commit:c775a0bb1dc7c3bb9f19888e7cd90426093406a8", README.md]
+documentation:
+  - https://github.com/orgs/r5valkyrie/repositories
+  - https://github.com/r5valkyrie/r5sdk
+  - https://github.com/r5valkyrie/docs

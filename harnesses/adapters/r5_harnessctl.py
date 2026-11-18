@@ -7,19 +7,31 @@ import argparse
 import json
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+
+
+class NoRedirects(HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        return None
 
 
 def call(connection_path, endpoint, data=None, timeout=100):
     connection = json.loads(Path(connection_path).read_text())
-    if not connection['url'].startswith('http://127.0.0.1:'):
+    address = urlsplit(connection['url'])
+    if (address.scheme != 'http' or address.hostname != '127.0.0.1' or
+            address.username is not None or address.password is not None or
+            address.port is None or not 1 <= address.port <= 65535 or
+            address.path or address.query or address.fragment):
         raise ValueError('Expected a loopback harness URL')
+    if endpoint not in ('boot', 'load', 'command', 'state', 'events', 'stop'):
+        raise ValueError('Unknown harness endpoint')
     request = Request(connection['url'] + '/' + endpoint,
                       data=json.dumps(data).encode() if data is not None else None,
                       headers={'Authorization': 'Bearer ' + connection['token'],
                                'Content-Type': 'application/json'})
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with build_opener(ProxyHandler({}), NoRedirects()).open(request, timeout=timeout) as response:
             return json.load(response)
     except HTTPError as error:
         raise RuntimeError(error.read().decode()) from None

@@ -1,0 +1,34 @@
+id: northstar-launcher
+name: Northstar launcher source
+description: Titanfall 2 Northstar launcher implementation and upstream modding documentation.
+repository: https://github.com/R2Northstar/NorthstarLauncher
+targets: [r2]
+categories: [runtime, reference]
+capabilities: [runtime-source, scripting-reference]
+formats:
+  inputs: [source, northstar-mod]
+  outputs: [runtime]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: afe0bce75d54cfc0eb8ac6aed03098aae488a360
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - README, BUILD.md routing and modding documentation inspected; no runtime validation of this commit.
+    - The ARES Northstar harness is a separate local-adapter entry, not proof for Ion or Prime.
+inspection:
+  checked_at: "2026-11-17"
+  method: github-api-readme-commit
+  evidence: ["commit:afe0bce75d54cfc0eb8ac6aed03098aae488a360", README.md]
+documentation:
+  - https://northstar.tf/
+  - https://github.com/R2Northstar
+  - https://docs.northstar.tf/Wiki/
+  - https://docs.northstar.tf/Modding/

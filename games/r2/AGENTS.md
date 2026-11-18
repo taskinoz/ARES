@@ -2,6 +2,11 @@
 
 Use R2-specific tools and confirm Northstar/runtime assumptions with upstream docs.
 
+Runtime forks and navigation sources: [routing guide](../../docs/runtime-sources.md).
+Ion and Prime are discovery references, not validated substitutes for the
+Northstar harness. For Recast work, use skill `build-navmesh` and registry entries
+`recast-respawn` / `r2recast`; their game exports are not yet ARES-verified.
+
 Applicable tool IDs:
 - r2-model-compiler
 - ps4-northstar

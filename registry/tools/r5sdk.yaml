@@ -1,0 +1,34 @@
+id: r5sdk
+name: R5Reloaded SDK source
+description: Apex Legends SDK source; the inspected README explicitly supports the S3 N1094 build.
+repository: https://github.com/Mauler125/r5sdk
+targets: [r5]
+categories: [runtime, reference]
+capabilities: [runtime-source, scripting-reference]
+formats:
+  inputs: [source]
+  outputs: [runtime]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: p4sync
+  commit: c49e0d2123bc3ddb53419005ddd7c6ef73925faf
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: null
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - README supports S3 R5pc_r5launch_N1094_CL456479_2019_10_30_05_20_PM and warns against use with the live game.
+    - No runtime validation of this source revision; ARES SDK 2.3 dedicated-server tests do not verify all other builds or rendering.
+    - Inspect the license directory before reuse.
+inspection:
+  checked_at: "2026-11-17"
+  method: github-api-readme-commit
+  evidence: ["commit:c49e0d2123bc3ddb53419005ddd7c6ef73925faf", README.md]
+documentation:
+  - https://r5reloaded.com/
+  - https://github.com/Mauler125/r5sdk
+  - https://github.com/Mauler125

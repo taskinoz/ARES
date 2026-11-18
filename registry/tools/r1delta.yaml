@@ -1,0 +1,33 @@
+id: r1delta
+name: R1Delta runtime and source
+description: Titanfall 1 community runtime; source and documentation reference for R1Delta-specific integration.
+repository: https://github.com/r1delta/r1delta
+targets: [r1]
+categories: [runtime, reference]
+capabilities: [runtime-source, scripting-reference]
+formats:
+  inputs: [source]
+  outputs: [runtime]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: 2e791ed32f378a71aa76cebf9b70f3a036836d54
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: GPL-3.0
+verification:
+  status: partial
+  last_checked: "2026-11-17"
+  notes:
+    - Source and README inspected; no build or runtime test of this revision. Existing ARES R1Delta harness evidence applies only to its recorded runtime.
+    - Do not substitute TFO scripts, assets or protocol assumptions.
+inspection:
+  checked_at: "2026-11-17"
+  method: github-api-readme-commit
+  evidence: ["commit:2e791ed32f378a71aa76cebf9b70f3a036836d54", README.md]
+documentation:
+  - https://r1delta.net/
+  - https://github.com/r1delta
+  - https://github.com/r1delta/docs

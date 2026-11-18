@@ -1,5 +1,6 @@
 """Northstar harness tests that need no game install."""
 import json
+import http.client
 import tempfile
 import threading
 import time
@@ -7,6 +8,7 @@ import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
+from unittest.mock import patch
 
 import northstar_harness as nh
 from tfo_harness import expectation_errors
@@ -45,6 +47,42 @@ class ControllerTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as caught:
             post(self.controller, '/poll/ui', {}, token='wrong')
         self.assertEqual(caught.exception.code, 403)
+
+    def test_server_initialization_hook_requires_all_opt_ins_statically(self):
+        manifest = json.loads((nh.HARNESS_SOURCE / 'mod.json').read_text())
+        script = nh.HARNESS_SOURCE / 'mod' / 'scripts' / 'vscripts' / manifest['Scripts'][0]['Path']
+        source = script.read_text()
+        early_hook = source.split('void function MTH_Start()', 1)[0]
+        for guard in ('GetConVarBool( "ares_harness_enabled" )', 'GetConVarString( "ip" ) == "127.0.0.1"',
+                      'GetConVarString( "ares_harness_token" ) != ""', 'NSIsHttpEnabled()', 'NSIsLocalHttpAllowed()'):
+            self.assertIn(guard, early_hook)
+
+    def test_rejects_invalid_bodies_without_poisoning_state(self):
+        for body in ([], None, 'text', 1):
+            with self.subTest(body=body), self.assertRaises(urllib.error.HTTPError) as caught:
+                post(self.controller, '/poll/ui', body)
+            self.assertEqual(caught.exception.code, 400)
+        self.assertEqual(self.controller.state('ui'), {})
+        self.assertEqual(post(self.controller, '/poll/ui', {'ready': True})[0], 204)
+
+    def test_bounded_body_and_bad_length(self):
+        for length, expected in (('-1', 413), (str(nh.MAX_BODY + 1), 413), ('not-a-number', 400)):
+            with self.subTest(length=length):
+                connection = http.client.HTTPConnection('127.0.0.1', self.controller.port, timeout=5)
+                try:
+                    connection.request('POST', '/poll/ui', body=b'', headers={
+                        'Authorization': 'Bearer ' + self.controller.token, 'Content-Length': length})
+                    response = connection.getresponse()
+                    self.assertEqual(response.status, expected)
+                    response.read()
+                finally:
+                    connection.close()
+
+    def test_unknown_endpoint_and_ack_id_rejected(self):
+        for path, body, status in (('/missing', {}, 404), ('/ack', {}, 400), ('/ack', {'id': []}, 400)):
+            with self.subTest(path=path, body=body), self.assertRaises(urllib.error.HTTPError) as caught:
+                post(self.controller, path, body)
+            self.assertEqual(caught.exception.code, status)
 
     def test_poll_records_state_and_delivers_one_job(self):
         status, _ = post(self.controller, '/poll/ui', {'ready': True})
@@ -115,8 +153,87 @@ class SessionTests(unittest.TestCase):
         return nh.Session(self.game, self.root / 'out', **kw)
 
     def test_profile_name_must_be_separate(self):
-        with self.assertRaises(ValueError):
-            self.session(profile='R2Northstar')
+        for profile in ('R2Northstar', 'r2northstar', '.', '..', 'R2Northstar.', 'CON'):
+            with self.subTest(profile=profile), self.assertRaises(ValueError):
+                self.session(profile=profile)
+
+    def test_failed_copy_rolls_back_without_explicit_close(self):
+        mod = write_mod(self.root / 'src' / 'My.Mod', 'My.Mod')
+        session = self.session(mods=[mod])
+        session.ensure_profile()
+        enabled = session.profile / 'enabledmods.json'
+        original = enabled.read_bytes()
+        copytree = nh.shutil.copytree
+
+        def fail_mod(source, destination, *args, **kwargs):
+            if Path(source) == mod:
+                (Path(destination) / 'partial.txt').write_bytes(b'partial')
+                raise OSError('simulated copy failure')
+            return copytree(source, destination, *args, **kwargs)
+
+        with patch.object(nh.shutil, 'copytree', side_effect=fail_mod), self.assertRaisesRegex(OSError, 'simulated'):
+            session.prepare()
+        self.assertEqual(enabled.read_bytes(), original)
+        self.assertFalse((session.profile / 'mods' / 'My.Mod').exists())
+        self.assertFalse((session.profile / 'mods' / nh.HARNESS_MOD).exists())
+        self.assertFalse(session.controller.thread.is_alive())
+
+    def test_map_selection_does_not_copy_neighboring_map_names(self):
+        build = self.root / 'build'
+        build.mkdir()
+        for name in ('mp_x.bsp', 'mp_x_spawn.ent', 'mp_x.bsp.0000.bsp_lump',
+                     'mp_xy.bsp', 'mp_xy.ent', 'mp_x_variant.bsp'):
+            (build / name).write_bytes(b'map')
+        self.assertEqual(sorted(path.name for path in nh.map_files(build, 'mp_x')),
+                         ['mp_x.bsp', 'mp_x.bsp.0000.bsp_lump', 'mp_x_spawn.ent'])
+
+    def test_repeated_close_does_not_restore_over_later_user_changes(self):
+        session = self.session()
+        session.prepare()
+        session.close()
+        enabled = session.profile / 'enabledmods.json'
+        enabled.write_bytes(b'user changes')
+        session.close()
+        self.assertEqual(enabled.read_bytes(), b'user changes')
+
+    def test_existing_unowned_profile_is_never_modified(self):
+        session = self.session(profile='Dedicated')
+        session.profile.mkdir()
+        enabled = session.profile / 'enabledmods.json'
+        enabled.write_bytes(b'user profile')
+        with self.assertRaisesRegex(FileExistsError, 'ARES-owned'):
+            session.prepare()
+        self.assertEqual(enabled.read_bytes(), b'user profile')
+        self.assertEqual([path.name for path in session.profile.iterdir()], ['enabledmods.json'])
+
+    def test_profile_lock_prevents_concurrent_session_overwrite(self):
+        first = self.session()
+        first.prepare()
+        try:
+            before = (first.profile / 'enabledmods.json').read_bytes()
+            second = self.session()
+            with self.assertRaises(FileExistsError):
+                second.prepare()
+            self.assertTrue(first.controller.thread.is_alive())
+            self.assertEqual((first.profile / 'enabledmods.json').read_bytes(), before)
+            self.assertTrue(first.profile_lock.is_file())
+            with self.assertRaisesRegex(RuntimeError, 'already prepared'):
+                first.prepare()
+        finally:
+            first.close()
+        self.assertFalse(first.profile_lock.exists())
+
+    def test_redirected_profile_is_rejected_before_writing(self):
+        session = self.session()
+        outside = self.root / 'outside'
+        outside.mkdir()
+        try:
+            session.profile.symlink_to(outside, target_is_directory=True)
+        except OSError as error:
+            self.skipTest(f'symlink creation unavailable: {error}')
+        with self.assertRaisesRegex(ValueError, 'redirected'):
+            session.prepare()
+        self.assertEqual(list(outside.iterdir()), [])
 
     def test_prepare_creates_profile_and_close_restores_everything(self):
         mod = write_mod(self.root / 'src' / 'My.Mod', 'My.Mod', '0.2.0')
