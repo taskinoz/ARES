@@ -166,7 +166,7 @@ class SessionTests(unittest.TestCase):
         copytree = nh.shutil.copytree
 
         def fail_mod(source, destination, *args, **kwargs):
-            if Path(source) == mod:
+            if Path(source).resolve() == mod.resolve():
                 (Path(destination) / 'partial.txt').write_bytes(b'partial')
                 raise OSError('simulated copy failure')
             return copytree(source, destination, *args, **kwargs)
