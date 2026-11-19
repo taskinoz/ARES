@@ -58,7 +58,7 @@ reject the map. Confirm with a [harness](../harnesses/README.md).
 
 | Tool | Does | Example |
 | --- | --- | --- |
-| `convar_scan.py` | Lists the ConVars and ConCommands registered in x64 PE game binaries (R1/TFO/R2) without launching the game: name, default, flags, help. Finds constructors by call shape, not per-build signatures, and reads R1's inlined server registrations. Includes development-only convars retail hides from `help`/`find`. Needs capstone | `python tools/convar_scan.py out.json --game C:/Games/Titanfall2` |
+| `convar_scan.py` | Lists the ConVars and ConCommands registered in x64 PE game binaries (R1/TFO/R2/R5, including Apex S0-S3 and R5Reloaded) without launching the game: name, default, flags, help. Finds constructors by call shape, not per-build signatures, and reads inlined registrations (R1 server, Apex) and data-laid-out ConCommands (TFO, Apex). Includes development-only convars retail hides from `help`/`find`. Needs capstone | `python tools/convar_scan.py out.json --game C:/Games/Titanfall2` |
 
 Static results cover what the binaries register. Mod and Squirrel convars only
 exist at runtime, and a hidden convar may be unusable in a given build, so

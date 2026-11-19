@@ -74,7 +74,7 @@ HUD by default (`engine_screenshots`, `hide_hud`). In TFO prefer
 or die. Every view is reviewed; black or one-colour frames fail and
 near-duplicates appear in `frame_warnings`. Before using a console command in a
 check, look it up in [the convar reference](../../../docs/convars.md): names
-and availability differ between R1, TFO and R2.
+and availability differ between R1, TFO, R2 and Apex/R5Reloaded.
 
 ## 4. Run and read the result
 

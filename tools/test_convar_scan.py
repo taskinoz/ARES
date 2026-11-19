@@ -62,6 +62,23 @@ class Builder:
         at = self.here()
         self.code += b'\xc7\x05' + rel(field + 16, at + 10) + struct.pack('<I', flags) + b'\xc3'
 
+    def store(self, target):
+        """mov [rip+target], rax"""
+        at = self.here()
+        self.code += b'\x48\x89\x05' + rel(target, at + 7)
+
+    def pointer_call(self, pointer, name, default, flags, help_text):
+        """The legacy R5Reloaded SDK: call [rip+pointer] after a long setup."""
+        self.code += b'\xcc' * 4
+        self.lea(0x4C, 0x05, self.string(default))          # lea r8, default
+        self.lea(0x48, 0x15, self.string(name))             # lea rdx, name
+        self.code += b'\x41\xb9' + struct.pack('<I', flags)  # mov r9d, flags
+        self.code += b'\x48\xc7\x40\x18\x00\x00\x00\x00' * 16  # mov qword [rax+18h], 0 (object setup)
+        self.lea(0x48, 0x05, self.string(help_text))        # lea rax, help
+        self.code += b'\x48\x89\x44\x24\x20'                # mov [rsp+20h], rax
+        at = self.here()
+        self.code += b'\xff\x15' + rel(pointer, at + 6) + b'\xc3'
+
     def write(self, path):
         image = bytearray(TEXT_RAW)
         image[:2] = b'MZ'
@@ -96,7 +113,8 @@ class ConvarScanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             cs.PE(bad)
 
-    def test_inline_registration_without_capstone(self):
+    @unittest.skipIf(capstone is None, 'needs capstone')
+    def test_inline_registration(self):
         b = Builder()
         field = BASE + DATA_RVA + 0x1800
         b.inline('sv_gravity', 'World gravity.', 0x2100, field)
@@ -125,6 +143,86 @@ class ConvarScanTests(unittest.TestCase):
         self.assertEqual((found['freecam_cmd_1']['help'], found['freecam_cmd_1']['flag_names']), ('Help 1.', ['CHEAT']))
         self.assertIsNone(found['freecam_cmd_0']['help'])
         self.assertEqual(cs.static_objects(cs.PE(self.root / 'client.dll'), min_sites=21), {})
+
+    @unittest.skipIf(capstone is None, 'needs capstone')
+    def test_apex_inline_convar_with_interleaved_stores(self):
+        b = Builder()
+        field = BASE + DATA_RVA + 0x1800
+        default = b.string('1.0')
+        b.data = b.data.ljust(0x1800 + 56, b'\x00') + struct.pack('<Q', default) + bytes(64)
+        b.code += b'\xcc' * 4
+        b.lea(0x48, 0x05, b.string('host_timescale'))       # lea rax, name
+        at = b.here()
+        b.code += b'\xc6\x05' + rel(field - 8, at + 7) + b'\x00'  # mov byte [F-8], 0
+        b.store(field)
+        b.lea(0x48, 0x05, b.string(''))                     # help and usage share ""
+        b.store(field + 8)
+        b.store(field + 16)
+        b.code += b'\x31\xc0'                               # xor eax, eax
+        at = b.here()
+        b.code += b'\x89\x05' + rel(field + 32, at + 6) + b'\xc3'  # mov dword [F+32], eax
+        found = cs.inline_registrations(cs.PE(b.write(self.root / 'r5apex.exe')))
+        entry = found['host_timescale']
+        self.assertEqual((entry['default'], entry['flags'], entry['help']), ('1.0', 0, ''))
+
+    @unittest.skipIf(capstone is None, 'needs capstone')
+    def test_script_binding_is_not_a_convar(self):
+        b = Builder()
+        field = BASE + DATA_RVA + 0x1800
+        b.code += b'\xcc' * 4
+        native = b.here()
+        b.lea(0x48, 0x05, b.string('table'))
+        b.store(field)
+        b.lea(0x48, 0x05, b.string('xyz startPos, xyz endPos'))
+        b.store(field + 8)
+        b.lea(0x48, 0x05, native)                           # the native function
+        b.store(field + 0x40)
+        at = b.here()
+        b.code += b'\xc7\x05' + rel(field + 16, at + 10) + struct.pack('<I', 0x20) + b'\xc3'
+        self.assertEqual(cs.inline_registrations(cs.PE(b.write(self.root / 'server.dll'))), {})
+
+    @unittest.skipIf(capstone is None, 'needs capstone')
+    def test_heap_command_filled_through_a_register(self):
+        b = Builder()
+        b.code += b'\xcc' * 4
+        callback = b.here()
+        b.code += b'\xc3' + b'\xcc' * 3
+        for text, disp in (('reload_playlists', 0x18), ('Reloads the playlists file.', 0x20)):
+            b.lea(0x48, 0x05, b.string(text))
+            b.code += b'\x48\x89\x42' + bytes([disp])        # mov [rdx+disp], rax
+        b.lea(0x48, 0x05, callback)
+        b.code += b'\x48\x89\x42\x50'                       # mov [rdx+50h], rax
+        b.code += b'\xc7\x42\x38' + struct.pack('<I', 0x80000) + b'\xc3'  # mov dword [rdx+38h], flags
+        found = cs.inline_registrations(cs.PE(b.write(self.root / 'gamesdk.dll')))
+        self.assertEqual((found['reload_playlists']['kind'], found['reload_playlists']['flag_names']),
+                         ('command', ['RELEASE']))
+
+    def test_apex_static_command_objects(self):
+        b = Builder()
+        b.code += b'\xcc' * 8 + b'\xc3'
+        callback = BASE + TEXT_RVA + 8
+        vtable, usage = b.string('vtable-placeholder'), b.string('')
+        names = [f'apex_cmd_{i}' for i in range(20)]
+        for i, name in enumerate(names):
+            name_va, help_va = b.string(name), b.string(f'Help {i}.')
+            while len(b.data) % 8:
+                b.data += b'\x00'
+            b.data += struct.pack('<QQQQQQQQQQQ', vtable, 0, 0, name_va, help_va, usage, 0,
+                                  0x80000 if i == 1 else 0, callback, 0, callback)
+        found = cs.static_objects(cs.PE(b.write(self.root / 'r5apex.exe')))
+        self.assertEqual(sorted(found), sorted(names))
+        self.assertEqual(found['apex_cmd_1']['flag_names'], ['RELEASE'])
+
+    @unittest.skipIf(capstone is None, 'needs capstone')
+    def test_constructor_called_through_a_pointer(self):
+        b = Builder()
+        pointer = BASE + DATA_RVA + 0x1F00
+        for i in range(21):
+            b.pointer_call(pointer, f'sdk_var_{i}', str(i), 0x2, f'Help {i}.')
+        found = cs.scan(b.write(self.root / 'gamesdk.dll'))
+        self.assertEqual(len(found), 21)
+        entry = found['sdk_var_4']
+        self.assertEqual((entry['default'], entry['help'], entry['constructor']), ('4', 'Help 4.', 'ptr:' + hex(pointer)))
 
     def test_flag_names(self):
         self.assertEqual(cs.decode_flags(0x4002), ['DEVELOPMENTONLY', 'CHEAT'])
