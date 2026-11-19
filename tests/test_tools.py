@@ -147,6 +147,34 @@ class Results(unittest.TestCase):
         with self.assertRaises(ValueError):
             result.validate(dict(schema_version='1'))
 
+    def test_empty_reports_do_not_claim_runtime_evidence(self):
+        for kind, convert in result.CONVERTERS.items():
+            with self.subTest(kind=kind):
+                out = convert({})
+                self.schema_check(out)
+                self.assertEqual((out['status'], out['verification']), ('failure', 'tool'))
+                self.assertFalse(any(check['passed'] for check in out['checks']))
+
+    def test_unfinished_runs_do_not_pass_with_stale_success_flags(self):
+        reports = {
+            'r1delta': dict(status='prepared', passed=True),
+            'tfo': dict(status='error', passed=True),
+            'r5reloaded': dict(state='failed', passed=True),
+            'northstar': dict(success=True, spawns=0),
+            'r1delta-compare': dict(total=1, passed=1, results=[]),
+        }
+        for kind, report in reports.items():
+            with self.subTest(kind=kind):
+                out = result.CONVERTERS[kind](report)
+                self.assertNotEqual(out['status'], 'success')
+                self.assertEqual(out['verification'], 'tool')
+
+    def test_comparison_uses_pair_evidence_over_summary_counts(self):
+        out = result.from_r1delta_compare(dict(
+            total=1, passed=1, results=[dict(name='box', issues=['bounds'])]))
+        self.assertEqual((out['status'], out['verification']), ('failure', 'runtime'))
+        self.assertEqual(out['errors'], ['box: bounds'])
+
 
 if __name__ == '__main__':
     unittest.main()
