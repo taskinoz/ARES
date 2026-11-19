@@ -70,6 +70,21 @@ these keys:
 | `spawn_probe` | Points: each gets floor, pilot (32×32×72) and titan (200×200×400) clearance |
 | `mode_check` | `true` records spawn, objective, out-of-bounds and hazard entity counts |
 | `thirdperson` | `true` treats views as the player's feet position, in third person |
+| `engine_screenshots` | `true` (default) captures views with the engine's `screenshot` command; the desktop window grab is a fallback |
+| `hide_hud` | `true` (default) sets `cl_drawhud 0` during views, which also removes the pre-match loadout overlay from engine captures |
+
+### Screenshots
+
+Views are captured engine-first through
+[`screenshots.py`](../adapters/screenshots.py): the harness sends
+`screenshot ares_<random>_<n>`, waits for `r2/screenshots/<name>.tga`, converts it
+to `view<i>.png` and deletes only that file. Engine captures need no focus
+change and can't include other windows. If the file doesn't appear within 4 s
+the desktop grab is used, and `report.json` `capture_methods` records which
+method produced each view. Every view is then reviewed: a black or one-colour
+frame fails the run, and a view nearly identical to an earlier one is listed in
+`frame_warnings` (the camera probably didn't move). `frames` holds each view's
+luminance mean, spread and difference hash. TFO and R1Delta use the same review.
 
 Line and hull traces use `TRACE_MASK_SOLID_BRUSHONLY`.
 

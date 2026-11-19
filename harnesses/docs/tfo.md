@@ -126,6 +126,29 @@ is off by default: TFORevive.Core 135 crashed during both JPEG and screenshot
 capture commands in native tests. R1Delta 3.0.5 passed three engine captures and prefers that path by default. Window
 fallbacks can include desktop popups; inspect them before claiming visual parity.
 
+### Freecam views
+
+`"freecam": true` renders each view from TFO's client freecam instead of
+moving the player: `freecam_enable`, then `freecam_setpos x y z` and
+`freecam_setang pitch yaw 0` per view, with `cl_drawhud 0` and `r_drawvgui 0`
+(the latter hides game-mode announcements and subtitles). The player stays
+where it is, so views can't drift, die, or be blocked by out-of-bounds
+triggers, and they work during the dropship intro. View events read
+`VIEW i freecam=true pose=x,y,z,pitch,yaw`; the origin/alive checks don't apply.
+The commands live in TFO's `client.dll` (found with `tools/convar_scan.py`);
+R1 retail and Titanfall 2 lack them. Verified on retail Colony (TFORevive,
+2026-11-19): two views from opposite directions, clean frames, exit 0. The pose
+is applied as commanded; `freecam_getpos` prints nothing to `tforevive.log`, so
+the exact camera position isn't read back.
+
+```json
+{"freecam": true, "views": [[1500, 0, 800, 20, 180], [-1500, 500, 900, 30, 0]]}
+```
+
+Every captured view is reviewed by
+[`screenshots.py`](../adapters/screenshots.py): black or one-colour frames
+fail, and near-duplicate views are listed in `frame_warnings`.
+
 
 Before installing a custom v29 map, the adapter checks embedded `01*`
 ENTITY_PARTITIONS declarations and requires each named `map_partition.ent`

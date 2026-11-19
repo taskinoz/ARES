@@ -68,6 +68,14 @@ explicit `mode_check` initialization checks. See their guides for the v29 schema
 Northstar's `spawn_probe` schema differs. Trigger checks use controlled repositioning,
 not normal traversal.
 
+Views: Northstar captures with the engine's `screenshot` command and hides the
+HUD by default (`engine_screenshots`, `hide_hud`). In TFO prefer
+`"freecam": true`: the camera, not the player, is placed, so views can't drift
+or die. Every view is reviewed; black or one-colour frames fail and
+near-duplicates appear in `frame_warnings`. Before using a console command in a
+check, look it up in [the convar reference](../../../docs/convars.md): names
+and availability differ between R1, TFO, R2 and Apex/R5Reloaded.
+
 ## 4. Run and read the result
 
 ```powershell
@@ -78,7 +86,9 @@ python harnesses/adapters/northstar_harness.py --game C:/Games/Titanfall2 `
 - Exit code 0 means loaded, finished and no failures. Otherwise read
   `report.json` `errors` first, then the copied game log (`nslog.txt`,
   `tforevive.log`).
-- Look at every `view*.png` yourself before claiming visual correctness.
+- Look at every `view*.png` yourself before claiming visual correctness. The
+  automatic review only rejects blank frames; `capture_methods` says whether
+  each came from the engine or a desktop grab.
 - `result.json` (Northstar) follows `harnesses/contracts/result.schema.json`.
 
 ## 5. Report

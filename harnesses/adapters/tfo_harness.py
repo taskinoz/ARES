@@ -47,6 +47,7 @@ from tf1_ain import navigation_graph
 from navigation_checks import validate_navigation, navigation_script, navigation_errors
 
 from capture_checks import validate_capture, capture_errors, capture_script
+from screenshots import collect_engine_screenshot, review_frames
 from sound_definitions import load_sound_sources
 from tfo_cp_dialogue import patch_dialogue, validate_compat
 from mode_checks import validate_mode, mode_errors, mode_script
@@ -129,6 +130,8 @@ def view_errors(events, views):
         if len(matches) != 1:
             errors.append(f'VIEW {index}: expected one recorded pose, found {len(matches)}')
             continue
+        if re.search(r'\bfreecam=true\b', matches[0]):
+            continue  # the camera, not the player, was placed; nothing can drift or die
         if not re.search(r'\balive=true(?:\s|$)', matches[0]):
             errors.append(f'VIEW {index}: player is dead or alive state was not recorded')
         try:
@@ -234,6 +237,7 @@ SCRIPT = r'''
 ::ARES_Hulls <- %HULLS%
 ::ARES_Views <- %VIEWS%
 ::ARES_ViewCommands <- %VIEW_COMMANDS%
+::ARES_Freecam <- %FREECAM%
 ::ARES_Drops <- %DROPS%
 ::ARES_DropSequential <- %DROP_SEQUENTIAL%
 ::ARES_DropModels <- %DROP_MODELS%
@@ -342,7 +346,31 @@ function ARES_Run( player )
 			ClientCommand( player, command )
 		wait 1
 	}
-	foreach ( i, v in ARES_Views )
+	if ( ARES_Freecam && ARES_Views.len() )
+	{
+		// The client freecam renders from any pose with no HUD; the player
+		// stays where it is, so gravity and death can't move the view.
+		ServerCommand( "sv_cheats 1" )
+		wait 1
+		ClientCommand( player, "freecam_enable" )
+		ClientCommand( player, "cl_drawhud 0" )
+		ClientCommand( player, "r_drawvgui 0" )  // announcements and subtitles
+		wait 1
+		foreach ( i, v in ARES_Views )
+		{
+			ClientCommand( player, "freecam_setpos " + v[0] + " " + v[1] + " " + v[2] )
+			ClientCommand( player, "freecam_setang " + v[3] + " " + v[4] + " 0" )
+			wait 2.0
+			if ( %ENGINE_SCREENSHOTS% )
+				ClientCommand( player, "screenshot %CAPTURE_TOKEN%_" + i )
+			ARES_Log( "VIEW " + i + " freecam=true pose=" + v[0] + "," + v[1] + "," + v[2] + "," + v[3] + "," + v[4] )
+			wait 2.0
+		}
+		ClientCommand( player, "freecam_disable" )
+		ClientCommand( player, "cl_drawhud 1" )
+		ClientCommand( player, "r_drawvgui 1" )
+	}
+	foreach ( i, v in ( ARES_Freecam ? [] : ARES_Views ) )
 	{
 		local announceAt = Time() + 2.0
 		local endAt = announceAt + 2.0
@@ -380,22 +408,8 @@ AddCallback_OnPlayerRespawned( ARES_OnSpawn )
 
 def collect_internal_capture(game, name, path, launch_time):
     """Collect only a fresh, uniquely named engine screenshot; never desktop pixels."""
-    if not re.fullmatch(r'ares_[a-f0-9]{32}_[0-9]+', name):
-        raise ValueError('invalid internal capture name')
-    from PIL import Image
-    for root in (game, game/'Bin', game/'Data', game/'r1', game/'r1delta'):
-        for extension in ('.jpg', '.tga', '.png'):
-            source = root/'screenshots'/(name + extension)
-            if source.is_file() and not source.is_symlink() and source.stat().st_mtime_ns >= launch_time:
-                try:
-                    with Image.open(source) as frame:
-                        frame.load()
-                        frame.save(path, format='PNG')
-                except (OSError, ValueError):
-                    continue  # engine may still be writing
-                source.unlink()  # exact task-owned filename only
-                return True
-    return False
+    roots = [root/'screenshots' for root in (game, game/'Bin', game/'Data', game/'r1', game/'r1delta')]
+    return collect_engine_screenshot(roots, name, path, launch_time)
 
 
 def capture_window(pid, path):
@@ -491,6 +505,8 @@ def write_mod(game, maps, checks, capture_token=None, sound_files=None, repair_h
     if not isinstance(view_commands, list) or any(
             not isinstance(c, str) or not re.fullmatch(r'[A-Za-z0-9_ .+-]{1,64}', c) for c in view_commands):
         raise ValueError('view_commands must be short console commands')
+    if type(checks.get('freecam', False)) is not bool:
+        raise ValueError('freecam must be true or false')
     audio = load_sound_sources(sound_files, repair_hardpoint_sound, (checks.get('mode_check') or {}).get('mode'))
     mods = game/'Mods'
     if audio:
@@ -537,6 +553,7 @@ def write_mod(game, maps, checks, capture_token=None, sound_files=None, repair_h
                                                 .replace('%HULL_MASKS%', '[' + ','.join(TRACE_MASKS[m] for m in hull_masks) + ']')
                                                 .replace('%VIEWS%', sq(checks.get('views', [])))
                                                 .replace('%VIEW_COMMANDS%', json.dumps(view_commands))
+                                                .replace('%FREECAM%', 'true' if checks.get('freecam', False) else 'false')
                                                 .replace('%DROPS%', sq(checks.get('drops', [])))
                                                 .replace('%DROP_SEQUENTIAL%', 'true' if checks.get('drop_sequential', False) else 'false')
                                                 .replace('%DROP_MODELS%', json.dumps(models))
@@ -667,10 +684,12 @@ def main():
     errors.extend(expectation_errors(events, checks.get('expect', {})))
     errors.extend(shot_errors)
     errors.extend(view_errors(events, checks.get('views', [])))
+    frames = review_frames(new_shots)
+    errors.extend(frames['errors'])
     if exit_code not in (None, 0):
         errors.append(f'TFO exited abnormally with code {exit_code}')
     report = {'map': args.map, 'compatibility': compatibility, 'events': events, 'errors': errors, 'screenshots': [s.name for s in new_shots],
-              'capture_methods': capture_methods,
+              'capture_methods': capture_methods, 'frames': frames['frames'], 'frame_warnings': frames['warnings'],
               'loaded': target_map_loaded(text, args.map), 'finished': '[ARES] DONE' in text}
     (args.output/'report.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
