@@ -81,56 +81,66 @@ def accept(game, mods, map_name, output, modes=('ps', 'ffa'), stock='mp_coliseum
     report = dict(map=map_name, modes={}, checks=[], errors=[], screenshots=[])
     check = lambda name, ok: report['checks'].append({'name': name, 'passed': bool(ok)})
     started = time.time()
-    with Session(game, output, mods=mods) as s:
-        for mode in modes:
-            s.load(map_name, mode)
+    s = Session(game, output, mods=mods)
+    try:
+        with s:
+            for mode in modes:
+                s.load(map_name, mode)
+                time.sleep(settle)
+                alive(s, map_name)
+                data = s.run('server', 'mode_check')['data']
+                probes = {}
+                for kind, classes, need in (('pilot', PILOT, 'pilot'), ('titan', TITAN, 'titan')):
+                    points = [p for c in classes for p in spawns[c]]
+                    if points:
+                        results = s.run('server', 'spawn_probe', points=points, timeout=120)['data']
+                        bad = [r['origin'] for r in results if not (r['floor'] and r[need])]
+                        probes[kind] = dict(points=len(points), failed=bad)
+                        check(f'{mode}: all {len(points)} {kind} spawns have floor and {need} clearance', not bad)
+                check(f'{mode}: map has pilot spawns', sum(len(spawns[c]) for c in PILOT) > 0)
+                if mode != 'ffa':
+                    for team in (2, 3):
+                        s.run('server', 'respawn', team=team)
+                        alive(s, map_name)
+                    check(f'{mode}: both teams respawn', True)
+                s.run('ui', 'console', command='+attack')
+                time.sleep(0.35)
+                s.run('ui', 'console', command='-attack')
+                time.sleep(1)
+                alive(s, map_name)
+                check(f'{mode}: weapon fire', True)
+                report['modes'][mode] = dict(entities=data['entities'], probes=probes)
+            s.run('ui', 'console', command='script SetGameState( eGameState.Postmatch )')
+            s.wait_state('ui', lambda st: st.get('level') == 'mp_lobby' and st.get('ready'), 120, 'postmatch lobby')
+            check('postmatch returns to the lobby', True)
+            s.load(stock, 'ps')
+            time.sleep(5)
+            s.load(map_name, modes[0])
             time.sleep(settle)
             alive(s, map_name)
-            data = s.run('server', 'mode_check')['data']
-            probes = {}
-            for kind, classes, need in (('pilot', PILOT, 'pilot'), ('titan', TITAN, 'titan')):
-                points = [p for c in classes for p in spawns[c]]
-                if points:
-                    results = s.run('server', 'spawn_probe', points=points, timeout=120)['data']
-                    bad = [r['origin'] for r in results if not (r['floor'] and r[need])]
-                    probes[kind] = dict(points=len(points), failed=bad)
-                    check(f'{mode}: all {len(points)} {kind} spawns have floor and {need} clearance', not bad)
-            check(f'{mode}: map has pilot spawns', sum(len(spawns[c]) for c in PILOT) > 0)
-            if mode != 'ffa':
-                for team in (2, 3):
-                    s.run('server', 'respawn', team=team)
-                    alive(s, map_name)
-                check(f'{mode}: both teams respawn', True)
-            s.run('ui', 'console', command='+attack')
-            time.sleep(0.35)
-            s.run('ui', 'console', command='-attack')
-            time.sleep(1)
-            alive(s, map_name)
-            check(f'{mode}: weapon fire', True)
-            report['modes'][mode] = dict(entities=data['entities'], probes=probes)
-        s.run('ui', 'console', command='script SetGameState( eGameState.Postmatch )')
-        s.wait_state('ui', lambda st: st.get('level') == 'mp_lobby' and st.get('ready'), 120, 'postmatch lobby')
-        check('postmatch returns to the lobby', True)
-        s.load(stock, 'ps')
-        time.sleep(5)
-        s.load(map_name, modes[0])
-        time.sleep(settle)
-        alive(s, map_name)
-        check(f'reload after {stock}', True)
-        shot = output / 'reload.png'
-        if s.capture(shot):
-            report['screenshots'].append(shot.name)
-        errors = s.script_errors()
-        report['errors'] += errors
-        check('no script errors', not errors)
+            check(f'reload after {stock}', True)
+            shot = output / 'reload.png'
+            if s.capture(shot):
+                report['screenshots'].append(shot.name)
+            errors = s.script_errors()
+            report['errors'] += errors
+            check('no script errors', not errors)
+    except Exception as error:  # still report crash dumps from a run that died
+        report['errors'].append(f'{type(error).__name__}: {error}')
+        check('acceptance finished', False)
+    report['crash_dumps'] = list(s.crash_dumps)
+    report['errors'] += [f'CRASH: Northstar wrote {name}' for name in s.crash_dumps]
+    check('no crash dumps', not s.crash_dumps)
     passed = all(c['passed'] for c in report['checks']) and not report['errors']
+    output.mkdir(parents=True, exist_ok=True)
     (output / 'report.json').write_text(json.dumps(report, indent=2))
     result = {'schema_version': '1.0', 'tool': 'northstar_acceptance', 'target': 'r2',
               'operation': f'map-acceptance:{map_name}:{"+".join(modes)}',
               'status': 'success' if passed else 'failure', 'verification': 'runtime',
               'duration_ms': int((time.time() - started) * 1000),
               'artifacts': [{'path': n, 'type': 'screenshot'} for n in report['screenshots']] +
-                           [{'path': 'report.json', 'type': 'report'}, {'path': 'nslog.txt', 'type': 'log'}],
+                           [{'path': 'report.json', 'type': 'report'}, {'path': 'nslog.txt', 'type': 'log'}] +
+                           [{'path': n, 'type': 'crash-dump'} for n in s.crash_dumps],
               'checks': report['checks'], 'errors': report['errors']}
     (output / 'result.json').write_text(json.dumps(result, indent=2))
     return result

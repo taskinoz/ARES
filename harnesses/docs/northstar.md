@@ -75,8 +75,11 @@ Line and hull traces use `TRACE_MASK_SOLID_BRUSHONLY`.
 
 Outputs in `REPORT_DIR`: `report.json` (events, spawn/mode data), `result.json`
 ([contract](../contracts/result.schema.json)), `nslog.txt` and `view<i>.png`.
-The exit code is 0 only when the map loaded, every check ran, and no script
-error or expectation failed. A server script error stops waiting jobs within a
+The harness token is replaced with `<redacted>` in the copied `nslog.txt`. Crash
+dumps (`nsdump*.dmp`) that Northstar writes to the profile during the run are
+copied to `crash/` and listed in `report.json` `crash_dumps`; older dumps are
+ignored. The exit code is 0 only when the map loaded, every check ran, and no
+script error, crash dump or expectation failed. A server script error stops waiting jobs within a
 second and is reported. The command doesn't wait for a timeout.
 
 ## Scripted, multi-phase tests

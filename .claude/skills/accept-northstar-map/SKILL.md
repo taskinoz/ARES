@@ -34,7 +34,8 @@ mods.
    - both teams respawned and the weapon fired;
    - postmatch reached `mp_lobby`;
    - the map reloaded after a stock map;
-   - no script errors.
+   - no script errors;
+   - no crash dumps (any `crash/nsdump*.dmp` written during the run fails it).
 
    `report.json` lists failed spawn origins. Look at `reload.png`.
 4. **If a load times out,** retry once. Under heavy CPU or disk load a load
