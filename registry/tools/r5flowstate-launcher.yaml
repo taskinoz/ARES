@@ -1,0 +1,31 @@
+id: r5flowstate-launcher
+name: R5Flowstate launcher
+description: "R5Flowstate content installer, server browser and process launcher shell for the S21-client/S3-dedicated bridge."
+repository: https://github.com/R5Flowstate/launcher
+targets: [r5]
+categories: [runtime]
+capabilities: [runtime-source, content-install]
+formats: {inputs: [source], outputs: [runtime]}
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: f05e0274d4e3530bfbd764e47d34298a3136964c
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "README: a .NET 8 shell only; it ships no paks, audio or r5apex.exe and installs game content into a separate user-chosen folder."
+    - "Installs the R5Flowstate bridge: a Season 21 client (r5apex_dx12.exe) and a Season 3 dedicated server (r5apex_ds.exe), with r5apex_listen_host.dll and r5f-modtool.exe in the local install."
+    - "No ARES adapter. The legacy SDK 2.3 r5 harness and its RCON protocol are not evidence for this runtime."
+inspection:
+  checked_at: "2026-11-20"
+  method: github-api-readme-commit
+  evidence: ["commit:f05e0274d4e3530bfbd764e47d34298a3136964c", README.md]
+documentation:
+  - https://github.com/R5Flowstate/launcher/blob/f05e0274d4e3530bfbd764e47d34298a3136964c/README.md
+  - https://r5flowstate.org/

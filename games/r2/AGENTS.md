@@ -7,6 +7,11 @@ Ion and Prime are discovery references, not validated substitutes for the
 Northstar harness. For Recast work, use skill `build-navmesh` and registry entries
 `recast-respawn` / `r2recast`; their game exports are not yet ARES-verified.
 
+Use `--capability campaign-modding` for Icepick source and scripting references
+and `--capability camera-reference` for offline IGCS camera research. Neither
+has a validated ARES harness. Keep campaign and Northstar evidence separate
+and do not stage community mods or archived builds into an installed game.
+
 Applicable tool IDs:
 - r2-model-compiler
 - ps4-northstar

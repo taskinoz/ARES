@@ -1,0 +1,31 @@
+id: icepick-sdk
+name: Titanfall 2 Icepick SDK
+description: Native SDK source for Icepick campaign mods.
+repository: https://github.com/Titanfall-Mods/TTF2SDK
+targets: [r2]
+categories: [sdk, reference]
+capabilities: [runtime-source, campaign-modding]
+formats:
+  inputs: [source]
+  outputs: [sdk]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: master
+  commit: ffd7501b6cd71dc652a361a10b8bf0186d482470
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-19"
+  notes:
+    - README documents mod loading, Visual Studio 2019, CMake and submodule dependencies.
+    - No ARES adapter or native compatibility test.
+inspection:
+  checked_at: "2026-11-19"
+  method: github-metadata-pinned-readme
+  evidence: ["commit:ffd7501b6cd71dc652a361a10b8bf0186d482470", "README.md"]
+documentation:
+  - https://github.com/Titanfall-Mods/TTF2SDK/blob/ffd7501b6cd71dc652a361a10b8bf0186d482470/README.md

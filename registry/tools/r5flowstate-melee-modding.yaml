@@ -1,0 +1,30 @@
+id: r5flowstate-melee-modding
+name: R5Flowstate melee modding kit
+description: "Blender mesh to an installable R5Flowstate heirloom melee mod on a stock rig: models, materials, client and server paks, weapon files, checks and Thunderstore packaging."
+repository: https://github.com/R5Flowstate/melee-modding
+targets: [r5]
+categories: [models, packaging]
+capabilities: [mod-packaging, model-conversion]
+formats: {inputs: [smd, dds], outputs: [rpak, thunderstore]}
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: 68927548933284874a54a49c310e7d7620ac1b75
+  readme_path: README.md
+  agents_path: null
+  skills_path: SKILL.md
+  harness_path: null
+  license: null
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "README: needs the R5Flowstate game, its rmdlconv, RSX and RePak forks, texconv and Blender Source Tools; host models are read from the user's install. Ships a SKILL.md for agents."
+    - "In game: sv_cheats 1, then give <weapon>. No ARES run."
+inspection:
+  checked_at: "2026-11-20"
+  method: github-api-readme-commit
+  evidence: ["commit:68927548933284874a54a49c310e7d7620ac1b75", README.md]
+documentation:
+  - https://github.com/R5Flowstate/melee-modding/blob/68927548933284874a54a49c310e7d7620ac1b75/README.md
+  - https://r5flowstate.org/

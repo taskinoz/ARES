@@ -14,6 +14,9 @@ Applicable tool IDs:
 Do not claim full runtime parity with R2 or R1 toolchains.
 
 Runtime/build routing and additional developer sources: [source guide](../../docs/runtime-sources.md).
+Modern seasons: R5Flowstate (successor to R5Valkyrie) is the S21-client/S3-dedicated
+bridge; its tools are the `r5flowstate-*` entries (map compiler, S30 port kit, RePak,
+RSX, rmdlconv, AnimConv and bspconv S21 forks). See the source guide's R5Flowstate section.
 S21 client and S3 dedicated products in `r5sdk-s21` have different ABIs. The
 `r5sdk-agentlink` source uses AGENTLINK 2, not the legacy SDK 2.3 RCON adapter.
 These are upstream-documented candidates, not ARES runtime-verified integrations.

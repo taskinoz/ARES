@@ -1,0 +1,30 @@
+id: r5flowstate-platform
+name: R5Flowstate S21 platform scripts
+description: "Squirrel scripts, UI resources, datatables, cfg and localization loaded from platform/ by the R5Flowstate S21 client and S3 dedicated server."
+repository: https://github.com/R5Flowstate/s21-platform
+targets: [r5]
+categories: [reference]
+capabilities: [scripting-reference]
+formats: {inputs: [source], outputs: [scripts]}
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: 9b21dc94a2e1be6f866beb0750f0644c599eafbf
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: AGPL-3.0
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "README: one script tree serves both engines; files use #if SERVER / CLIENT / UI and each VM compiles its own half. Nothing is compiled; the tree drops over platform/."
+    - "Use as the S21 gameplay scripting reference. Not evidence of an S21 native ABI; native code lives in r5sdk-s21."
+inspection:
+  checked_at: "2026-11-20"
+  method: github-api-readme-commit
+  evidence: ["commit:9b21dc94a2e1be6f866beb0750f0644c599eafbf", README.md]
+documentation:
+  - https://github.com/R5Flowstate/s21-platform/blob/9b21dc94a2e1be6f866beb0750f0644c599eafbf/README.md
+  - https://r5flowstate.org/

@@ -1,0 +1,32 @@
+id: icepick-launcher
+name: Titanfall 2 Icepick launcher
+description: Legacy single-player mod launcher and mod manager.
+repository: https://github.com/Titanfall-Mods/Titanfall-2-Icepick
+targets: [r2]
+categories: [runtime, reference]
+capabilities: [runtime-source, campaign-modding]
+formats:
+  inputs: [source]
+  outputs: [runtime]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: master
+  commit: b716bffb2e3b2f0a5b384557e173f78062bcbcba
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-19"
+  notes:
+    - Official project site documents single-player modding; README describes SDK loading and mod management.
+    - No ARES adapter or native compatibility test.
+inspection:
+  checked_at: "2026-11-19"
+  method: github-metadata-pinned-readme
+  evidence: ["commit:b716bffb2e3b2f0a5b384557e173f78062bcbcba", "README.md"]
+documentation:
+  - https://github.com/Titanfall-Mods/Titanfall-2-Icepick/blob/b716bffb2e3b2f0a5b384557e173f78062bcbcba/README.md
+  - https://titanfall-mods.github.io/

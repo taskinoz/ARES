@@ -3,8 +3,8 @@
 
 Each in-game harness writes its own detailed report; this module maps it onto the shared
 contract so agents can treat every harness alike. Verification is never upgraded: a
-prepared-but-not-run session is `tool`, a run whose screenshots still need review is
-`partial`, and only a finished game run is `runtime`.
+prepared-but-not-run session is `tool`, and runtime verification requires
+evidence from the game. R1Delta runs awaiting screenshot review are `partial`.
 
 usage: python -m ares.result <kind> report.json [--out result.json]
 kinds: r5reloaded, northstar, tfo, r1delta, r1delta-compare
@@ -47,7 +47,8 @@ def from_r5reloaded(report, path=None):
     if collision is not None:
         checks.append(('collision traces, drops and ragdolls', collision.get('passed', False)))
     artifacts = _shots(report.get('screenshots')) + ([dict(path=str(path), type='report')] if path else [])
-    return _result('ares.harness.r5reloaded', 'r5', 'ingame-test', 'success' if report.get('passed') else 'failure',
+    passed = finished and report.get('passed') is True
+    return _result('ares.harness.r5reloaded', 'r5', 'ingame-test', 'success' if passed else 'failure',
                    'runtime' if finished else 'tool', checks, failures, artifacts,
                    1000 * (report.get('elapsed_seconds') or 0),
                    dict(runtime_sha256=report.get('runtime_sha256'), exit_code=report.get('exit_code')))
@@ -56,23 +57,26 @@ def from_r5reloaded(report, path=None):
 def from_northstar(report, path=None):
     """ares.harness.northstar (`--report`)."""
     failures = list(report.get('failures') or [])
-    checks = [('spawns', bool(report.get('spawns'))), ('validation', report.get('success', False))]
+    spawned = type(report.get('spawns')) is int and report['spawns'] > 0
+    passed = spawned and report.get('success') is True
+    checks = [('spawns', spawned), ('validation', passed)]
     artifacts = _shots(report.get('screenshots')) + [dict(path=str(p), type='log') for p in report.get('logs') or []]
     if path:
         artifacts.append(dict(path=str(path), type='report'))
-    return _result('ares.harness.northstar', 'r2', 'ingame-test', 'success' if report.get('success') else 'failure',
-                   'runtime', checks, failures, artifacts)
+    return _result('ares.harness.northstar', 'r2', 'ingame-test', 'success' if passed else 'failure',
+                   'runtime' if spawned else 'tool', checks, failures, artifacts)
 
 
 def from_tfo(report, path=None):
     """ares.harness.tfo (`--report`). A prepare-only report is a tool-level result."""
     issues = list(report.get('issues') or [])
-    prepared_only = report.get('status') in ('preparing', 'prepared')
-    checks = [('game run completed', not prepared_only and report.get('status') not in ('failed', 'error')),
-              ('telemetry passed', report.get('passed', False))]
+    state = report.get('status')
+    passed = state == 'passed' and report.get('passed') is True
+    runtime = state in ('passed', 'failed')
+    checks = [('game run was evaluated', runtime), ('telemetry passed', passed)]
     artifacts = _shots(report.get('screenshots')) + ([dict(path=str(path), type='report')] if path else [])
-    status = 'success' if report.get('passed') else 'partial' if prepared_only and not issues else 'failure'
-    return _result('ares.harness.tfo', 'tfo', 'ingame-test', status, 'tool' if prepared_only else 'runtime',
+    status = 'success' if passed else 'partial' if state in ('preparing', 'prepared') and not issues else 'failure'
+    return _result('ares.harness.tfo', 'tfo', 'ingame-test', status, 'runtime' if runtime else 'tool',
                    checks, issues, artifacts, details=dict(coverage=report.get('coverage')))
 
 
@@ -82,14 +86,16 @@ def from_r1delta(report, path=None):
     issues = list(report.get('issues') or [])
     server, visual = report.get('server_passed', False), report.get('visual_passed', False)
     checks = [('server telemetry', server), ('screenshots reviewed', visual)]
-    status = 'success' if report.get('passed') else 'partial' if server and not issues else 'failure'
+    collected = report.get('status') == 'collected'
+    passed = collected and report.get('passed') is True
+    status = 'success' if passed else 'partial' if collected and server and not issues else 'failure'
     artifacts = _shots(report.get('screenshots'))
     for key, kind in (('log', 'log'), ('console_snapshot', 'log')):
         if report.get(key):
             artifacts.append(dict(path=str(report[key]), type=kind))
     if path:
         artifacts.append(dict(path=str(path), type='report'))
-    return _result('ares.harness.r1delta', 'r1', 'ingame-test', status, 'runtime' if report.get('status') == 'collected' else 'tool',
+    return _result('ares.harness.r1delta', 'r1', 'ingame-test', status, 'runtime' if collected else 'tool',
                    checks, issues, artifacts)
 
 
@@ -98,10 +104,12 @@ def from_r1delta_compare(report, path=None):
     results = report.get('results') or []
     checks = [(r.get('name', 'pair %d' % i), not r.get('issues')) for i, r in enumerate(results)]
     errors = ['%s: %s' % (r.get('name'), issue) for r in results for issue in r.get('issues') or []]
-    total, passed = report.get('total', len(results)), report.get('passed', 0)
+    total = len(checks)
+    passed = sum(passed for _, passed in checks)
     status = 'success' if total and passed == total else 'partial' if passed else 'failure'
     artifacts = [dict(path=str(path), type='report')] if path else []
-    return _result('ares.harness.r1delta_compare', 'r1', 'retail-comparison', status, 'runtime', checks, errors, artifacts)
+    return _result('ares.harness.r1delta_compare', 'r1', 'retail-comparison', status,
+                   'runtime' if total else 'tool', checks, errors, artifacts)
 
 
 CONVERTERS = {'r5reloaded': from_r5reloaded, 'northstar': from_northstar, 'tfo': from_tfo,

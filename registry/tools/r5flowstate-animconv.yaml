@@ -1,0 +1,31 @@
+id: r5flowstate-animconv
+name: R5-AnimConv (R5Flowstate S21 fork)
+description: "Animation converter (MDL, RRIG, RSEQ) between Apex seasons with a Season 21 writer (rrig v17, rseq v11)."
+repository: https://github.com/R5Flowstate/R5-AnimConv
+targets: [r2, r5]
+categories: [models, conversion]
+capabilities: [animation-conversion]
+formats: {inputs: [mdl49, mdl53, rrig, rseq], outputs: [rrig, rseq]}
+integration: {type: external-repository, harness: unverified, agent_instructions: partially-verified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: 50540cbc88cf3665f5a8e8d31d2e9fb49a3196a9
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: null
+  license: GPL-3.0
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "README: -o 21 writes rrig v17 + rseq v11; the default output is still S3 (-o 3). Datapoint sources are re-encoded because S21 has no datapoint decoder."
+    - "Fork of the registered r5-animation-converter upstream. No ARES conversion run."
+inspection:
+  checked_at: "2026-11-20"
+  method: github-api-readme-commit
+  evidence: ["commit:50540cbc88cf3665f5a8e8d31d2e9fb49a3196a9", README.md, AGENTS.md]
+documentation:
+  - https://github.com/R5Flowstate/R5-AnimConv/blob/50540cbc88cf3665f5a8e8d31d2e9fb49a3196a9/README.md
+  - https://github.com/R5Flowstate/R5-AnimConv/blob/50540cbc88cf3665f5a8e8d31d2e9fb49a3196a9/AGENTS.md
+  - https://r5flowstate.org/

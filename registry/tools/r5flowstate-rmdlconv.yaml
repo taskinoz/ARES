@@ -1,0 +1,31 @@
+id: r5flowstate-rmdlconv
+name: rmdlconv (R5Flowstate S21 fork)
+description: "Studio model converter that emits mdl_ v17 for the S21 client and v10/v54 for the S3 dedicated server."
+repository: https://github.com/R5Flowstate/rmdlconv
+targets: [r2, r5]
+categories: [models, conversion]
+capabilities: [model-conversion, asset-conversion]
+formats: {inputs: [mdl49, mdl53, rmdl], outputs: [rmdl-v17, rmdl-v54]}
+integration: {type: external-repository, harness: unverified, agent_instructions: partially-verified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: 3a82da8f8b9cfa8d13e272e79addbb25c78f89c5
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: null
+  license: GPL-3.0
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "README: v19.1/v16 and v12.2 (S10) to v17, v8 to v17, collision part-map and surface-prop handling; legacy Portal 2 v49 / TF2 v53 to v54 paths remain."
+    - "Check outputs with inspect-respawn-model, and v54 collision with validate-r5-collision. No ARES conversion run."
+inspection:
+  checked_at: "2026-11-20"
+  method: github-api-readme-commit
+  evidence: ["commit:3a82da8f8b9cfa8d13e272e79addbb25c78f89c5", README.md, AGENTS.md]
+documentation:
+  - https://github.com/R5Flowstate/rmdlconv/blob/3a82da8f8b9cfa8d13e272e79addbb25c78f89c5/README.md
+  - https://github.com/R5Flowstate/rmdlconv/blob/3a82da8f8b9cfa8d13e272e79addbb25c78f89c5/AGENTS.md
+  - https://r5flowstate.org/
