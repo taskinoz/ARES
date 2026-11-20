@@ -605,7 +605,9 @@ def launch(session, port):
     env.update(FROM_DELTA_LAUNCHER='1', ContentId='1025161', __COMPAT_LAYER='NoDTToDITMouseBatch=1')
     paths = [app / 'r1delta/bin_delta', app / 'r1delta/bin', game / 'bin/x64_retail', game / 'r1/bin/x64_retail']
     env['PATH'] = os.pathsep.join([str(p) for p in paths if p.is_dir()] + [env.get('PATH', '')])
-    command = [str(app / 'Titanfall.exe'), '-novid', '-usemcp', '-windowed', '-w', '1280', '-h', '720',
+    # -multiple (R1Delta's tier0): without it a second Titanfall process, such as a retry while the
+    # previous attempt is still closing, stops at a modal "only one instance" dialog and hangs the run.
+    command = [str(app / 'Titanfall.exe'), '-multiple', '-novid', '-usemcp', '-windowed', '-w', '1280', '-h', '720',
                '+developer', '1', '+mcp_start_http', str(port)]
     build_navigation = session.get('build_navigation', False)
     if type(build_navigation) is not bool:

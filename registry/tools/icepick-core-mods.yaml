@@ -1,0 +1,31 @@
+id: icepick-core-mods
+name: Icepick Core Mods
+description: Sandbox framework and Custom Gauntlets campaign scripting references.
+repository: https://github.com/Titanfall-Mods/Icepick-Core-Mods
+targets: [r2]
+categories: [scripting, reference]
+capabilities: [scripting-reference, campaign-modding]
+formats:
+  inputs: [source]
+  outputs: [icepick-mod]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: master
+  commit: 67cca7d16b17a2fb53958dbb967af474f218aaba
+  readme_path: README.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-19"
+  notes:
+    - README identifies Icepick.Framework and Wilko.CustomGauntlets and documents the Icepick data/mods layout.
+    - No ARES adapter or native compatibility test.
+inspection:
+  checked_at: "2026-11-19"
+  method: github-metadata-pinned-readme
+  evidence: ["commit:67cca7d16b17a2fb53958dbb967af474f218aaba", "README.md"]
+documentation:
+  - https://github.com/Titanfall-Mods/Icepick-Core-Mods/blob/67cca7d16b17a2fb53958dbb967af474f218aaba/README.md

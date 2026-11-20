@@ -1,0 +1,32 @@
+id: igcs-titanfall2
+name: Injectable Generic Camera System for Titanfall 2
+description: Build-specific camera reference for offline screenshots and cutscenes.
+repository: https://github.com/FransBouma/InjectableGenericCameraSystem
+targets: [r2]
+categories: [capture, reference]
+capabilities: [camera-reference, screenshots]
+formats:
+  inputs: [source]
+  outputs: [camera-tool]
+integration: {type: external-repository, harness: unverified, agent_instructions: unverified, setup: upstream}
+upstream:
+  default_branch: master
+  commit: f3b951b6e120910e8081ffcd6518b21b06b153a4
+  readme_path: ReadMe.md
+  agents_path: null
+  skills_path: null
+  harness_path: null
+  license: BSD-2-Clause
+verification:
+  status: partial
+  last_checked: "2026-11-19"
+  notes:
+    - Commit is the TF2_103 tag; release notes identify camera v1.0.3 and describe a cutscene camera fix.
+    - No ARES adapter or native compatibility test.
+inspection:
+  checked_at: "2026-11-19"
+  method: github-release-tag-pinned-readme
+  evidence: ["commit:f3b951b6e120910e8081ffcd6518b21b06b153a4", "ReadMe.md", "release:TF2_103"]
+documentation:
+  - https://github.com/FransBouma/InjectableGenericCameraSystem/blob/f3b951b6e120910e8081ffcd6518b21b06b153a4/ReadMe.md
+  - https://github.com/FransBouma/InjectableGenericCameraSystem/releases/tag/TF2_103

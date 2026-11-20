@@ -1,6 +1,7 @@
 # Runtime, SDK and navigation source routing
 
-Inspected on 2026-11-17. These are source-discovery integrations, **partially
+Inspected on 2026-11-17; R2 campaign and camera references added 2026-11-19.
+These are source-discovery integrations, **partially
 verified** by metadata and documentation inspection, not newly tested game
 adapters. Registered revisions and evidence are in `registry/tools/`. A target
 tag routes a search; it does not imply binary, scripting, asset or wire parity.
@@ -11,6 +12,8 @@ tag routes a search; it does not imply binary, scripting, asset or wire parity.
 python scripts/discover-tools.py --game r2 --capability runtime-source --json
 python scripts/discover-tools.py --game r5 --capability agent-control --json
 python scripts/discover-tools.py --game r2 --capability navmesh-generation --json
+python scripts/discover-tools.py --game r2 --capability campaign-modding --json
+python scripts/discover-tools.py --game r2 --capability camera-reference --json
 python scripts/discover-tools.py --game r5 --capability animation-conversion --json
 python scripts/discover-tools.py --game r2 --integration local-adapter --json
 ```
@@ -32,12 +35,67 @@ under `r5` and record its exact SDK/build and season.
 | [Northstar Prime](https://github.com/F1F7Y/NorthstarPrime) | `primedev` reference. Its README warns users must fix their own problems. Do not present it as the maintained Northstar adapter. |
 | [Mauler125 R5 SDK](https://github.com/Mauler125/r5sdk) | Inspected `p4sync` README lists S3 N1094. ARES's legacy SDK 2.3 dedicated adapter is not proof of compatibility with every source revision. |
 | [Valkyrie SDK](https://github.com/r5valkyrie/r5sdk), [organization](https://github.com/orgs/r5valkyrie/repositories) | R5 (Apex Legends) later-season runtime. The inspected SDK README still lists S3 N1094; that repository alone does not resolve later-season compatibility. |
+| [R5Flowstate](https://r5flowstate.org/), [organization](https://github.com/orgs/R5Flowstate/repositories) | R5 modern-season runtime and successor to R5Valkyrie: an S21 client and an S3 dedicated server against one script tree. Its `s21-r5sdk` is the same `s21-unify` commit as the KralRindo SDK below; its asset tools are S21 forks (see below). Upstream-documented, not ARES runtime-verified. |
 | [KralRindo S21 SDK](https://github.com/kralrindo/s21-r5sdk) | Its `s21-unify` README and `AGENTS.md` explicitly distinguish an S21 client from an S3 dedicated server. This is stronger later-season evidence, but still upstream-documented rather than ARES runtime-verified. |
 
 The S21 SDK names client build `R5pc_r5-211_J12_CL6933961_2024_06_14_13_58`
 and dedicated build `R5pc_r5launch_N1094_CL456479_2019_10_30_05_20_PM`.
 Follow its upstream `AGENTS.md`: product macros, layouts, precompiled headers and
 hook ownership differ. Do not copy offsets or assume the same ABI across products.
+
+## R5 modern seasons (R5Flowstate)
+
+R5Flowstate runs a Season 21 client (`r5apex_dx12.exe`) beside a Season 3
+dedicated server (`r5apex_ds.exe`); `loader.dll` picks the SDK product from the
+host executable. Treat every asset as belonging to one side: client paks and
+maps are S21 (rBSP v51, `mdl_` v17, `aseq` v11), dedicated ones S3 (v47, v54).
+Use `python scripts/discover-tools.py --game r5 --json` and filter on the
+`r5flowstate-*` IDs. All are partially verified from pinned READMEs and
+`AGENTS.md`; none has an ARES adapter or runtime run.
+
+| Entry | Use it for |
+| --- | --- |
+| `r5flowstate-launcher` | Installing content and launching; the shell ships no game files |
+| `r5flowstate-platform` | S21 Squirrel scripts, UI, datatables and playlists (`#if SERVER/CLIENT/UI` in one tree) |
+| `r5sdk-s21` | Native SDK source (`client.dll` for S21, `server.dll` for S3) |
+| `r5flowstate-r5ed` | Map editor and rBSP compiler (v51 client, v47 dedicated VPK), Titanfall 2 import, Recast navmesh job |
+| `r5flowstate-s30-port-kit` | Porting Season 30 maps onto the S21 build, gated per step |
+| `r5flowstate-bspconv` | rBSP v52 to v51, `-dedi` v47, and a Titanfall 2 pipeline with rebuilt collision |
+| `r5flowstate-repak`, `r5flowstate-s21-paks` | Building S21 client and S3 dedicated paks, and the per-pak manifests |
+| `r5flowstate-rsx` | Extracting raw, re-packable assets and a map's dependency closure |
+| `r5flowstate-rmdlconv`, `r5flowstate-animconv` | Model (`mdl_` v17 / v54) and animation (rrig v17, rseq v11) conversion |
+| `r5flowstate-sere` | RUI authoring for S21 (`ruiVersion` 42); `ui_fs` keeps its RUI as SERE graphs |
+| `r5flowstate-melee-modding` | End-to-end heirloom melee mod kit with an agent `SKILL.md` |
+
+ARES's R5 harness, convar scans and RPak packager cover the legacy SDK 2.3 (S3)
+only. Don't assume an S3 tool's output loads in the S21 client.
+
+## R2 campaign modding and offline capture
+
+- [Icepick](https://titanfall-mods.github.io/) is a legacy single-player modding
+  tool, not a substitute for the Northstar adapter. Keep the
+  [launcher](https://github.com/Titanfall-Mods/Titanfall-2-Icepick),
+  [TTF2SDK](https://github.com/Titanfall-Mods/TTF2SDK), and
+  [Core Mods](https://github.com/Titanfall-Mods/Icepick-Core-Mods) revisions separate.
+  Core Mods documents the Icepick `data/mods` layout and provides sandbox and
+  custom gauntlet examples; do not assume Northstar package compatibility.
+- [Thylord Sandbox](https://www.moddb.com/mods/thylord-sandbox/downloads/thylord-sandbox)
+  is described by its author as an unofficial Icepick expansion. Treat it as a
+  community lead, not a source-verified SDK fork or a tested dependency.
+- [IGCS source](https://github.com/FransBouma/InjectableGenericCameraSystem) and the
+  [Titanfall 2 release](https://github.com/FransBouma/InjectableGenericCameraSystem/releases/tag/TF2_103)
+  are offline camera references. The release describes camera v1.0.3 and a
+  cutscene camera fix. Prefer the existing ARES capture path for Northstar
+  evidence; IGCS has not been validated with ARES or current retail builds.
+- Browse [ModDB](https://www.moddb.com/games/titanfall-2), its
+  [downloads](https://www.moddb.com/games/titanfall-2/downloads), and
+  [Nexus Mods](https://www.nexusmods.com/games/titanfall2) for leads. Check each
+  listing's required loader, version, source, and license before use.
+
+A user-supplied local archive is an optional, private provenance source, not an
+installation or a dependency. Start with a read-only inventory and record only
+necessary version/hash evidence locally. Do not publish archive contents or
+assume an unreleased build is safe to run or equivalent to a public release.
 
 ## Agent-link control is not legacy RCON
 

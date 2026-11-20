@@ -1,0 +1,31 @@
+id: r5flowstate-s21-paks
+name: R5Flowstate S21 pak recipes
+description: "RePak manifests and build lists for the R5Flowstate S21 client paks and S3 dedicated-server paks."
+repository: https://github.com/R5Flowstate/s21-paks
+targets: [r5]
+categories: [packaging, reference]
+capabilities: [rpak-packaging]
+formats: {inputs: [json], outputs: [rpak]}
+integration: {type: external-repository, harness: unverified, agent_instructions: partially-verified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: f7e7634dd233ce7be2c35722f6e711dbfa7e328f
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: null
+  license: null
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "README: map pak inputs are extracted from the user's own install; the SDK and custom content paks build from the clone. Dedi paks carry server asset types only (mdl_, aseq, arig, stgs, stlt, dtbl, txls, Ptch)."
+    - "Reference for which assets each pak needs. No ARES build."
+inspection:
+  checked_at: "2026-11-20"
+  method: github-api-readme-commit
+  evidence: ["commit:f7e7634dd233ce7be2c35722f6e711dbfa7e328f", README.md, AGENTS.md]
+documentation:
+  - https://github.com/R5Flowstate/s21-paks/blob/f7e7634dd233ce7be2c35722f6e711dbfa7e328f/README.md
+  - https://github.com/R5Flowstate/s21-paks/blob/f7e7634dd233ce7be2c35722f6e711dbfa7e328f/AGENTS.md
+  - https://r5flowstate.org/

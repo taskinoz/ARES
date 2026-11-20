@@ -1,0 +1,31 @@
+id: r5flowstate-repak
+name: RePak (R5Flowstate S21 fork)
+description: "RPak builder from JSON asset maps that writes Season 21 native asset versions, with a dedi path that routes models and animations back to S3 versions."
+repository: https://github.com/R5Flowstate/RePak
+targets: [r5]
+categories: [packaging]
+capabilities: [rpak-packaging]
+formats: {inputs: [json, rmdl, rseq, rrig, dds], outputs: [rpak, starpak]}
+integration: {type: external-repository, harness: unverified, agent_instructions: partially-verified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: 2e36e6fabe0ca4f2bbfb78cfd0bc203835f10ef7
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: null
+  license: MIT
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "README: S21 writers include mdl_ v17, aseq v11, arig v6, matl v23, shdr v15, shds v12, txtr v10 and uiia v2; upstream r-ex/RePak by way of the R5Valkyrie fork."
+    - "ARES's own packager (ares-rpak-packager) targets R5Reloaded S3; do not load S21 paks into an S3-only runtime."
+inspection:
+  checked_at: "2026-11-20"
+  method: github-api-readme-commit
+  evidence: ["commit:2e36e6fabe0ca4f2bbfb78cfd0bc203835f10ef7", README.md, AGENTS.md]
+documentation:
+  - https://github.com/R5Flowstate/RePak/blob/2e36e6fabe0ca4f2bbfb78cfd0bc203835f10ef7/README.md
+  - https://github.com/R5Flowstate/RePak/blob/2e36e6fabe0ca4f2bbfb78cfd0bc203835f10ef7/AGENTS.md
+  - https://r5flowstate.org/

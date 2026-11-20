@@ -1,0 +1,31 @@
+id: r5flowstate-bspconv
+name: bspconv (R5Flowstate S21 fork)
+description: "rBSP version converter defaulting to v51 (S21 client) with -dedi for v47 (S3 server), plus a Titanfall 2 to S21/S3 map pipeline."
+repository: https://github.com/R5Flowstate/bspconv
+targets: [r2, r5]
+categories: [maps, conversion]
+capabilities: [map-conversion]
+formats: {inputs: [bsp37, bsp47, bsp52], outputs: [bsp51, bsp47]}
+integration: {type: external-repository, harness: unverified, agent_instructions: partially-verified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: 2d45a8c85c62c64cdbd5a90bf123243e179dc60a
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: null
+  license: AGPL-3.0
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "README: v52 downgrades to v51; the built-in v37 upgrade generates no collision, so Titanfall 2 maps go through tools/tf2coll (Apex BVH4 collision, lightmaps, partitions, cubemaps) and tools/tf2mat."
+    - "Validate outputs with inspect-bsp. No ARES conversion run."
+inspection:
+  checked_at: "2026-11-20"
+  method: github-api-readme-commit
+  evidence: ["commit:2d45a8c85c62c64cdbd5a90bf123243e179dc60a", README.md, AGENTS.md]
+documentation:
+  - https://github.com/R5Flowstate/bspconv/blob/2d45a8c85c62c64cdbd5a90bf123243e179dc60a/README.md
+  - https://github.com/R5Flowstate/bspconv/blob/2d45a8c85c62c64cdbd5a90bf123243e179dc60a/AGENTS.md
+  - https://r5flowstate.org/

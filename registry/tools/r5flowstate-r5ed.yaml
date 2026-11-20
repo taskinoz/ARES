@@ -1,0 +1,32 @@
+id: r5flowstate-r5ed
+name: r5ed (R5Flowstate)
+description: "Map editor and rBSP compiler for the R5Flowstate S21 bridge: CSG, lighting bake, collision BVH, vis, dedicated-server emit and Titanfall 2 conversion."
+repository: https://github.com/R5Flowstate/r5ed
+targets: [r2, r5]
+categories: [maps, compilation, conversion]
+capabilities: [map-authoring, map-compilation, map-conversion, lightmap-baking, navmesh-generation]
+formats: {inputs: [r5map, bsp37, bsp51], outputs: [bsp51, bsp47, vpk]}
+integration: {type: external-repository, harness: unverified, agent_instructions: partially-verified, setup: upstream}
+upstream:
+  default_branch: main
+  commit: 056aad5b8009af0f242c12dd209a5477f6d996c7
+  readme_path: README.md
+  agents_path: AGENTS.md
+  skills_path: null
+  harness_path: null
+  license: AGPL-3.0
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "README: one Rust core built as browser wasm, editor host and headless CLI with byte-identical output; rbsp codecs for v37/v47/v51 with validate."
+    - "CLI import-map (a map from the install) and import-tf2 (a Titanfall 2 v37 BSP); the navmesh job calls an external Recast baker (R5ED_RECAST). Client maps are v51, dedicated maps v47 shipped as a VPK."
+    - "The r2 target is Titanfall 2 map conversion input, not R2 output. No ARES build, compile or runtime validation; check its output with inspect-bsp before testing in game."
+inspection:
+  checked_at: "2026-11-20"
+  method: github-api-readme-commit
+  evidence: ["commit:056aad5b8009af0f242c12dd209a5477f6d996c7", README.md, AGENTS.md]
+documentation:
+  - https://github.com/R5Flowstate/r5ed/blob/056aad5b8009af0f242c12dd209a5477f6d996c7/README.md
+  - https://github.com/R5Flowstate/r5ed/blob/056aad5b8009af0f242c12dd209a5477f6d996c7/AGENTS.md
+  - https://r5flowstate.org/
