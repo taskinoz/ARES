@@ -10,8 +10,9 @@ a small static-initialiser that loads the arguments and calls a constructor:
 
 A call target (direct, or through a pointer as in the legacy R5Reloaded SDK)
 becomes a constructor when at least --min-sites of its call sites (and 80% of
-them) have one of those shapes. Inlined registrations (R1's server.dll, Apex's
-r5apex.exe) and ConCommands laid out as data (TFO, Apex) are read too. No
+them) have one of those shapes. Inlined registrations (R1's server.dll, Apex
+S0-S3 and the S21 client) and ConCommands laid out as data (TFO, Apex) are
+read too. No
 per-build byte signatures are used. Script-registered and mod convars (Northstar mods, Squirrel) are not in
 the binaries; confirm anything a test depends on in the game (help <name>).
 
@@ -280,8 +281,12 @@ def inline_registrations(pe, engine=None):
                 offset = pe.offset(field + 56) if base == 'rip' else None
                 if offset is not None:
                     default = pe.string(struct.unpack_from('<Q', pe.data, offset)[0])
+            elif at(16) in ints:
+                flags = ints[at(16)]
+            elif stores.get(at(16)) == 0:  # Apex S21: a zero qword at F+16, flags at F+24
+                flags = ints.get(at(24))
             else:
-                flags = ints.get(at(16))
+                flags = None
             if flags is None:
                 continue
             found.setdefault(name, {'kind': 'convar', 'module': pe.path.name, 'constructor': 'inline',
@@ -290,17 +295,19 @@ def inline_registrations(pe, engine=None):
     return found
 
 
-# ConCommand data layouts, as offsets from the name pointer: help, flags,
-# callback, and the usage string where the build has one. TFO's client.dll and
-# Apex's r5apex.exe; the vtable is always 24 bytes before the name.
-STATIC_LAYOUTS = ({'help': 8, 'flags': 16, 'callback': 48, 'usage': None},
-                  {'help': 8, 'flags': 32, 'callback': 56, 'usage': 16})
+# ConCommand data layouts, as offsets from the name pointer: vtable, help,
+# flags, callback, the usage string where the build has one, and a qword that
+# must be zero. TFO's client.dll, Apex S0-S3 r5apex.exe, and the Apex S21
+# client (R5Flowstate's r5apex_dx12.exe), whose retail help strings are empty.
+STATIC_LAYOUTS = ({'vtable': -24, 'help': 8, 'flags': 16, 'callback': 48, 'usage': None, 'zero': None},
+                  {'vtable': -24, 'help': 8, 'flags': 32, 'callback': 56, 'usage': 16, 'zero': None},
+                  {'vtable': -16, 'help': 8, 'flags': 24, 'callback': 48, 'usage': None, 'zero': 16})
 
 
 def static_objects(pe, min_sites=20):
     """ConCommands the compiler laid out as initialised data (TFO, Apex).
 
-    Each object is vtable, 0, 0, name, help, ... (STATIC_LAYOUTS). Objects are
+    Each object is vtable, ..., name, help, ... (STATIC_LAYOUTS). Objects are
     grouped by vtable; a vtable shared by at least min_sites named objects with
     code callbacks is treated as ConCommand's.
     """
@@ -315,12 +322,12 @@ def static_objects(pe, min_sites=20):
             name_va = struct.unpack_from('<Q', data, at)[0]
             if not inside(name_va) or pe.is_code(name_va):
                 continue
-            vtable = struct.unpack_from('<Q', data, at - 24)[0]
-            if not inside(vtable):
-                continue
             for layout in STATIC_LAYOUTS:
                 q = {key: struct.unpack_from('<Q', data, at + off)[0] for key, off in layout.items() if off is not None}
-                if q['flags'] >> 32 or not pe.is_code(q['callback']):
+                vtable = q['vtable']
+                if not inside(vtable) or q['flags'] >> 32 or not pe.is_code(q['callback']):
+                    continue
+                if 'zero' in q and q['zero'] != 0:
                     continue
                 if 'usage' in q and (not inside(q['usage']) or pe.string(q['usage']) is None):
                     continue

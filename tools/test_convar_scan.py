@@ -213,6 +213,40 @@ class ConvarScanTests(unittest.TestCase):
         self.assertEqual(sorted(found), sorted(names))
         self.assertEqual(found['apex_cmd_1']['flag_names'], ['RELEASE'])
 
+    def test_apex_s21_static_command_objects(self):
+        b = Builder()
+        b.code += b'\xcc' * 8 + b'\xc3'
+        callback = BASE + TEXT_RVA + 8
+        vtable, empty = b.string('vtable-placeholder'), b.string('')
+        names = [f's21_cmd_{i}' for i in range(20)]
+        for i, name in enumerate(names):
+            name_va = b.string(name)
+            while len(b.data) % 8:
+                b.data += b'\x00'
+            # 0, vtable, 0, name, help "", 0, flags, shared handler, 0, callback, completion
+            b.data += struct.pack('<QQQQQQQQQQQ', 0, vtable, 0, name_va, empty, 0,
+                                  0x20002 if i == 1 else 0, callback, 0, callback, callback)
+        found = cs.static_objects(cs.PE(b.write(self.root / 'r5apex_dx12.exe')))
+        self.assertEqual(sorted(found), sorted(names))
+        self.assertEqual(found['s21_cmd_1']['flag_names'], ['DEVELOPMENTONLY', 'DONTRECORD'])
+        self.assertIsNone(found['s21_cmd_1']['help'])
+
+    @unittest.skipIf(capstone is None, 'needs capstone')
+    def test_apex_s21_inline_convar(self):
+        b = Builder()
+        field = BASE + DATA_RVA + 0x1800
+        b.code += b'\xcc' * 4
+        b.lea(0x48, 0x05, b.string('host_timescale'))
+        b.store(field)
+        b.lea(0x48, 0x05, b.string(''))                     # S21 retail strips help text
+        b.store(field + 8)
+        at = b.here()
+        b.code += b'\x48\xc7\x05' + rel(field + 16, at + 11) + b'\x00' * 4  # mov qword [F+16], 0
+        at = b.here()
+        b.code += b'\xc7\x05' + rel(field + 24, at + 10) + struct.pack('<I', 0x6000) + b'\xc3'
+        found = cs.inline_registrations(cs.PE(b.write(self.root / 'r5apex_dx12.exe')))
+        self.assertEqual(found['host_timescale']['flag_names'], ['REPLICATED', 'CHEAT'])
+
     @unittest.skipIf(capstone is None, 'needs capstone')
     def test_constructor_called_through_a_pointer(self):
         b = Builder()

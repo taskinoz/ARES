@@ -5,7 +5,8 @@ isolation, debug overlays, AI and bots, time and logging. Use it to choose
 harness commands instead of guessing names across games. The engines share
 most debug convars but differ in the ones that matter: TFO has a scriptable
 freecam, Titanfall 2 lacks `cvarlist` and `find`, and Apex has Recast navmesh
-debug drawing and `script` commands but no freecam.
+debug drawing and `script` commands but no freecam (the Season 21 client has
+`roamingcam_setpos`).
 
 ## How the lists were made
 
@@ -18,20 +19,23 @@ used; it recognises how each engine lays out a registration:
   arguments at 20+ call sites (direct calls, or calls through a pointer as in
   the legacy R5Reloaded SDK);
 - constructors the compiler inlined: the name, help and flags are stored
-  straight into the object (R1's `server.dll`, every Apex `r5apex.exe`, and the
-  legacy SDK's heap-built ConCommands);
-- ConCommands laid out as initialised data (TFO's `client.dll`, Apex).
+  straight into the object (R1's `server.dll`, every Apex executable including
+  the Season 21 client, and the legacy SDK's heap-built ConCommands);
+- ConCommands laid out as initialised data (TFO's `client.dll`, Apex S0-S3 and
+  S21, each with its own field layout).
 
 | Game (build scanned) | Entries | Convars | Commands |
 | --- | --- | --- | --- |
 | R1: Titanfall 1 retail + R1Delta 3.0.5 | 3,741 | 3,054 | 687 |
 | TFO: Titanfall Online (TFORevive) | 3,857 | 3,096 | 761 |
 | R2: Titanfall 2 + Northstar 1.31.15 | 3,012 | 2,453 | 559 |
-| R5: Apex Season 0 and Season 1 (same `r5apex.exe`) | 3,345 | 2,753 | 592 |
-| R5: Apex Season 2 (unpacked) | 3,329 | 2,736 | 593 |
-| R5: Apex Season 3 (`r5apex.exe`, `r5apex_ds.exe`) | 3,410 | 2,812 | 598 |
-| R5: R5Reloaded SDK 2.3 (the harness's install) | 3,577 | 2,941 | 636 |
-| R5: R5Reloaded 2.6.52 (launcher `R5R Library/LIVE`) | 3,650 | 2,988 | 662 |
+| R5: Apex Season 0 and Season 1 (same `r5apex.exe`) | 3,346 | 2,754 | 592 |
+| R5: Apex Season 2 (unpacked) | 3,330 | 2,737 | 593 |
+| R5: Apex Season 3 (`r5apex.exe`, `r5apex_ds.exe`) | 3,411 | 2,813 | 598 |
+| R5: R5Reloaded SDK 2.3 (the harness's install) | 3,578 | 2,942 | 636 |
+| R5: R5Reloaded 2.6.52 (launcher `R5R Library/LIVE`) | 3,651 | 2,989 | 662 |
+| R5: R5Flowstate S21 client (`r5apex_dx12.exe`, `client_s30.dll`) | 4,146 | 3,622 | 524 |
+| R5: R5Flowstate S3 server (`r5apex_ds.exe`, `server.dll`, `r5apex_listen_host.dll`) | 4,565 | 3,880 | 685 |
 
 Accuracy was measured on R2 against the game's own answers (`help <name>` for
 every candidate name, plus Northstar's `convar_find`; 3,167 entries):
@@ -80,6 +84,29 @@ development-only `convar_list`, not yet tried in game.
   is registered. `thirdperson_override`, `stream_freeze_camera` and
   `getpos_bind` are the camera controls it has.
 
+## R5Flowstate
+
+R5Flowstate (SDK `R5FlowstateSDK005`) runs a Season 21 client against a Season
+3 dedicated server, so the two sides register different sets: 2,372 names on
+both, 1,774 only on the client and 2,193 only on the server.
+
+- The S21 client (`r5apex_dx12.exe`) isn't packed, but retail stripped its help
+  text: every help pointer is the same empty string, and defaults aren't in
+  the object's initialised data, so client entries have flags but no help or
+  default. Against the S3 engine it adds 1,876 names and drops 1,141.
+- The SDK's client (`client_s30.dll`) registers nothing the scanner sees. Its
+  name tables are filters (blocked and allowed prefixes) over the engine's
+  own convars.
+- The S3 side is the Season 3 engine (`r5apex_ds.exe` and
+  `r5apex_listen_host.dll`, 3,412 each) plus the SDK's `server.dll` (1,154
+  entries with help, 190 of them `bot_*` autoplayer AI settings).
+- For tests: `roamingcam_setpos` (cheat) places a roaming camera, the nearest
+  thing to TFO's freecam; `cam_pitchfreeze_on` / `cam_yawfreeze_on` hold the
+  view; `spectate_map` and the observer commands give spectator views;
+  `cl_liveapi_*` turns on LiveAPI, which sends structured match events over a
+  websocket or to an event file; `r_visualizetraceshulls` draws hull traces.
+  None of these has been run in game yet.
+
 ## Verified in game
 
 | Use | Command | Where | Result |
@@ -102,177 +129,191 @@ retail `help`/`find` (Northstar lists many of these anyway). "—" means the sca
 didn't find it in that game's binaries; ¹ "in game" means R2's scan missed it
 but the game confirmed it. R5R 2.3 and R5R 2.6 include the SDK DLLs; the
 retail seasons are close to the 2.3 engine column without the SDK entries.
+R5F is R5Flowstate, client and server together; its help text comes from the
+other columns or the SDK, since the S21 client has none.
 
 ### Cameras and views
 
-| Name | Kind | R1 | TFO | R2 | R5 | Help |
-| --- | --- | --- | --- | --- | --- | --- |
-| `freecam_enable` | command | — | yes | — | — | — |  |
-| `freecam_disable` | command | — | yes | — | — | — |  |
-| `freecam_setpos` | command | — | yes (cheat) | — | — | — | Move freecam to the specified origin. |
-| `freecam_setang` | command | — | yes (cheat) | — | — | — | Rotate freecam to the specified angles. |
-| `freecam_getpos` | command | — | yes (cheat) | — | — | — |  |
-| `freecam_paused` | command | — | yes | — | — | — |  |
-| `freecam` | command | — | yes | — | — | — |  |
-| `thirdperson` | command | yes (cheat) | yes (cheat) | yes (cheat) | — | — | Switch to thirdperson camera. |
-| `thirdpersonshoulder` | command | yes | yes | yes | — | — | Switch to thirdperson-shoulder camera. |
-| `firstperson` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | Switch to firstperson camera. |
-| `camortho` | command | yes (cheat) | yes (cheat) | yes (cheat) | — | — | Switch to orthographic camera. |
-| `cam_command` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Tells camera to change modes |
-| `cam_idealdist` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
-| `getpos` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | dump position and angles to the console |
-| `getpos_exact` | command | yes | yes | — | — | — | dump origin and angles to the console |
-| `getposvec` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | dump position and angles to the console in 'Vector( x, y, z ), Vector( pitch, yaw, roll )' format |
-| `cl_showpos` | convar | yes | yes | yes | yes | yes | Draw current position at top of screen |
-| `thirdperson_override` | convar | — | — | — | yes (cheat) | yes (cheat) | Set to -1 to stop overriding. Set to 0 to force first person, 1 to force third person |
-| `thirdperson_mayamode` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Switch to thirdperson Maya-like camera controls. |
-| `cam_collision` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | When in thirdperson and cam_collision is set to 1, an attempt is made to keep the camera from passing though w |
-| `stream_freeze_camera` | convar | — | — | yes | yes (dev-only) | yes (dev-only) | Freezes camera for purposes of streaming map textures. |
-| `getpos_bind` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | Binds the given key to a setpos/setang command of your current position. |
+| Name | Kind | R1 | TFO | R2 | R5R 2.3 | R5R 2.6 | R5F | Help |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `freecam_enable` | command | — | yes | — | — | — | — |  |
+| `freecam_disable` | command | — | yes | — | — | — | — |  |
+| `freecam_setpos` | command | — | yes (cheat) | — | — | — | — | Move freecam to the specified origin. |
+| `freecam_setang` | command | — | yes (cheat) | — | — | — | — | Rotate freecam to the specified angles. |
+| `freecam_getpos` | command | — | yes (cheat) | — | — | — | — |  |
+| `freecam_paused` | command | — | yes | — | — | — | — |  |
+| `freecam` | command | — | yes | — | — | — | — |  |
+| `thirdperson` | command | yes (cheat) | yes (cheat) | yes (cheat) | — | — | — | Switch to thirdperson camera. |
+| `thirdpersonshoulder` | command | yes | yes | yes | — | — | — | Switch to thirdperson-shoulder camera. |
+| `firstperson` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Switch to firstperson camera. |
+| `camortho` | command | yes (cheat) | yes (cheat) | yes (cheat) | — | — | — | Switch to orthographic camera. |
+| `cam_command` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Tells camera to change modes |
+| `cam_idealdist` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `getpos` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | dump position and angles to the console |
+| `getpos_exact` | command | yes | yes | — | — | — | — | dump origin and angles to the console |
+| `getposvec` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | dump position and angles to the console in 'Vector( x, y, z ), Vector( pitch, yaw, roll )' format |
+| `cl_showpos` | convar | yes | yes | yes | yes | yes | yes | Draw current position at top of screen |
+| `thirdperson_override` | convar | — | — | — | yes (cheat) | yes (cheat) | yes (cheat) | Set to -1 to stop overriding. Set to 0 to force first person, 1 to force third person |
+| `thirdperson_mayamode` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Switch to thirdperson Maya-like camera controls. |
+| `cam_collision` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | When in thirdperson and cam_collision is set to 1, an attempt is made to keep the camera from passing though w |
+| `stream_freeze_camera` | convar | — | — | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Freezes camera for purposes of streaming map textures. |
+| `getpos_bind` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Binds the given key to a setpos/setang command of your current position. |
+| `roamingcam_setpos` | command | — | — | — | — | — | yes (cheat) |  |
+| `cam_pitchfreeze_on` | convar | — | — | — | — | — | yes (dev-only) |  |
+| `cam_yawfreeze_on` | convar | — | — | — | — | — | yes (dev-only) |  |
+| `spectate_map` | command | — | — | — | — | — | yes (dev-only) |  |
 
 ### Clean frames and capture
 
-| Name | Kind | R1 | TFO | R2 | R5 | Help |
-| --- | --- | --- | --- | --- | --- | --- |
-| `screenshot` | command | yes | yes | yes | yes | yes | Take a screenshot. |
-| `jpeg` | command | yes | yes | yes | yes | yes | Take a jpeg screenshot:  jpeg <filename> <quality 1-100>. |
-| `jpeg_quality` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | jpeg screenshot quality. |
-| `jpeg_path` | convar | — | yes | — | — | — | jpeg screenshot path. |
-| `cl_screenshotname` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | Custom Screenshot name |
-| `screenshot_overview` | command | — | — | yes | — | — | Take an overview screenshot. |
-| `devshots_screenshot` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | Used by the -makedevshots system to take a screenshot. For taking your own screenshots, use the 'screenshot' c |
-| `cl_drawhud` | convar | yes (cheat) | yes (dev-only) | yes (cheat) | yes (cheat) | yes (cheat) | Enable the rendering of the hud |
-| `hidehud` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
-| `r_drawvgui` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Enable the rendering of vgui panels |
-| `r_drawviewmodel` | convar | yes (cheat) | yes (dev-only) | yes (cheat) | yes (cheat) | yes (cheat) |  |
-| `envmap` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) |  |
-| `buildcubemaps` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | Rebuild cubemaps. |
-| `mat_envmaptgasize` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | Final envmap size for "envmap" console command; should be <= 128. |
-| `host_framerate` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | Set to lock per-frame time elapse. |
+| Name | Kind | R1 | TFO | R2 | R5R 2.3 | R5R 2.6 | R5F | Help |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `screenshot` | command | yes | yes | yes | yes | yes | yes | Take a screenshot. |
+| `jpeg` | command | yes | yes | yes | yes | yes | yes | Take a jpeg screenshot:  jpeg <filename> <quality 1-100>. |
+| `jpeg_quality` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | jpeg screenshot quality. |
+| `jpeg_path` | convar | — | yes | — | — | — | — | jpeg screenshot path. |
+| `cl_screenshotname` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Custom Screenshot name |
+| `screenshot_overview` | command | — | — | yes | — | — | — | Take an overview screenshot. |
+| `devshots_screenshot` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Used by the -makedevshots system to take a screenshot. For taking your own screenshots, use the 'screenshot' c |
+| `cl_drawhud` | convar | yes (cheat) | yes (dev-only) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Enable the rendering of the hud |
+| `hidehud` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
+| `r_drawvgui` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Enable the rendering of vgui panels |
+| `r_drawviewmodel` | convar | yes (cheat) | yes (dev-only) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
+| `envmap` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `buildcubemaps` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Rebuild cubemaps. |
+| `mat_envmaptgasize` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Final envmap size for "envmap" console command; should be <= 128. |
+| `host_framerate` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Set to lock per-frame time elapse. |
+| `hdr_screenshot_default_filename` | convar | — | — | — | — | — | yes (dev-only) |  |
 
 ### Render isolation
 
-| Name | Kind | R1 | TFO | R2 | R5 | Help |
-| --- | --- | --- | --- | --- | --- | --- |
-| `r_drawworld` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Render the world (0 = none, 1 = opaque only, 2 = trans only, 3 = both). |
-| `r_drawstaticprops` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Toggle drawing of static props |
-| `r_drawentities` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | 0: don't draw; 1: draw normal; 2: draw bones; 3: draw hulls |
-| `r_drawothermodels` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | 0=Off, 1=Normal, 2=Wireframe |
-| `r_drawparticles` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Enable/disable particle rendering |
-| `r_drawdecals` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Render decals. |
-| `r_drawsky` | convar | — | — | yes (cheat) | yes (cheat) | yes (cheat) | Enable the rendering of sky |
-| `r_drawskybox` | convar | yes (cheat) | yes (cheat) | — | — | — |  |
-| `r_drawropes` | convar | yes (cheat) | yes (cheat) | — | — | — |  |
-| `r_drawclipbrushes` | convar | yes (cheat) | yes (cheat) | — | — | — | Draw clip brushes (red=NPC+player, pink=player, purple=NPC) |
-| `r_drawlightcache` | convar | yes (cheat) | yes (cheat) | — | — | — | 0: off 1: draw light cache entries 2: draw rays 5: only draw models containing the substring set in r_lightcac |
-| `r_drawlightinfo` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
-| `r_lightmap` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
-| `mat_fullbright` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
-| `mat_drawflat` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
-| `mat_luxels` | convar | yes (cheat) | yes (cheat) | — | — | — |  |
-| `mat_normals` | convar | yes (cheat) | yes (cheat) | — | — | — |  |
-| `mat_showmiplevels` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | color-code miplevels 2: normalmaps, 1: everything else |
-| `csm_enabled` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | Set whether to render cascading shadow maps |
-| `csm_debug_2d` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
-| `vcollide_wireframe` | convar | yes (cheat) | yes (cheat) | — | — | — | Render physics collision models in wireframe |
-| `r_drawWorldMeshes` | convar | — | — | — | yes (dev-only, cheat) | yes (dev-only, cheat) | Render world meshes. |
-| `r_drawmodelstatsoverlay` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Draws information for static props and other models |
-| `r_visualizetraces` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
-| `r_visualizetraces_duration` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) |  |
+| Name | Kind | R1 | TFO | R2 | R5R 2.3 | R5R 2.6 | R5F | Help |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `r_drawworld` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Render the world (0 = none, 1 = opaque only, 2 = trans only, 3 = both). |
+| `r_drawstaticprops` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Toggle drawing of static props |
+| `r_drawentities` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | 0: don't draw; 1: draw normal; 2: draw bones; 3: draw hulls |
+| `r_drawothermodels` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | 0=Off, 1=Normal, 2=Wireframe |
+| `r_drawparticles` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Enable/disable particle rendering |
+| `r_drawdecals` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Render decals. |
+| `r_drawsky` | convar | — | — | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Enable the rendering of sky |
+| `r_drawskybox` | convar | yes (cheat) | yes (cheat) | — | — | — | — |  |
+| `r_drawropes` | convar | yes (cheat) | yes (cheat) | — | — | — | — |  |
+| `r_drawclipbrushes` | convar | yes (cheat) | yes (cheat) | — | — | — | — | Draw clip brushes (red=NPC+player, pink=player, purple=NPC) |
+| `r_drawlightcache` | convar | yes (cheat) | yes (cheat) | — | — | — | — | 0: off 1: draw light cache entries 2: draw rays 5: only draw models containing the substring set in r_lightcac |
+| `r_drawlightinfo` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
+| `r_lightmap` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
+| `mat_fullbright` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
+| `mat_drawflat` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
+| `mat_luxels` | convar | yes (cheat) | yes (cheat) | — | — | — | — |  |
+| `mat_normals` | convar | yes (cheat) | yes (cheat) | — | — | — | — |  |
+| `mat_showmiplevels` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | color-code miplevels 2: normalmaps, 1: everything else |
+| `csm_enabled` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Set whether to render cascading shadow maps |
+| `csm_debug_2d` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `vcollide_wireframe` | convar | yes (cheat) | yes (cheat) | — | — | — | — | Render physics collision models in wireframe |
+| `r_drawWorldMeshes` | convar | — | — | — | yes (dev-only, cheat) | yes (dev-only, cheat) | — | Render world meshes. |
+| `r_drawmodelstatsoverlay` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Draws information for static props and other models |
+| `r_visualizetraces` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) |  |
+| `r_visualizetraces_duration` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `r_visualizetraceshulls` | convar | — | — | — | — | — | yes (cheat) |  |
 
 ### Entities, triggers and collision
 
-| Name | Kind | R1 | TFO | R2 | R5 | Help |
-| --- | --- | --- | --- | --- | --- | --- |
-| `showtriggers` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Shows trigger brushes |
-| `showtriggers_toggle` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Toggle show triggers |
-| `ent_text` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Displays text debugging information about the given entity(ies) on top of the entity (See Overlay Text) 	Argum |
-| `ent_bbox` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Displays the movement bounding box for the given entity(ies) in orange.  Some entites will also display entity |
-| `ent_absbox` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Displays the total bounding box for the given entity(s) in green.  Some entites will also display entity speci |
-| `ent_pivot` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Displays the pivot for the given entity(ies). 	(y=up=green, z=forward=blue, x=left=red).  	Arguments:   	{enti |
-| `ent_messages` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Toggles input/output message display for the selected entity(ies).  The name of the entity will be displayed a |
-| `ent_fire` | convar | yes (cheat) | yes (cheat) | in game¹ | — | — | Usage:    ent_fire <target> [action] [value] [delay] |
-| `ent_create` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Creates an entity of the given type where the player is looking. |
-| `ent_remove` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Removes the given entity(s) 	Arguments:   	{entity_name} / {class_name} / no argument picks what player is loo |
-| `sv_showhitboxes` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Send server-side hitboxes for specified entity to client (NOTE:  this uses lots of bandwidth, use on listen se |
-| `debug_draw_box_depth_test` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | Toggle depth test for debug draw box functionality |
-| `titan_step_damage_debug` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | Draw debug box of titan step damage volume |
-| `ent_text_radius` | command | — | — | yes (cheat) | yes (cheat) | yes (cheat) | Displays text debugging information about the given entity(ies) on top of the entity (See Overlay Text) 	Argum |
-| `showtriggers_distance` | convar | — | — | — | yes (cheat) | yes (cheat) | Sets the distance from the player that triggers can be shown at. |
-| `bhit` | command | — | — | — | yes (dev-only) | yes (dev-only) | Bullet-hit trajectory debug. |
-| `bhit_enable` | convar | — | — | — | yes (dev-only) | yes (dev-only) | Enables bhit commands from the client |
+| Name | Kind | R1 | TFO | R2 | R5R 2.3 | R5R 2.6 | R5F | Help |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `showtriggers` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Shows trigger brushes |
+| `showtriggers_toggle` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Toggle show triggers |
+| `ent_text` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Displays text debugging information about the given entity(ies) on top of the entity (See Overlay Text) 	Argum |
+| `ent_bbox` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Displays the movement bounding box for the given entity(ies) in orange.  Some entites will also display entity |
+| `ent_absbox` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Displays the total bounding box for the given entity(s) in green.  Some entites will also display entity speci |
+| `ent_pivot` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Displays the pivot for the given entity(ies). 	(y=up=green, z=forward=blue, x=left=red).  	Arguments:   	{enti |
+| `ent_messages` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Toggles input/output message display for the selected entity(ies).  The name of the entity will be displayed a |
+| `ent_fire` | convar | yes (cheat) | yes (cheat) | in game¹ | — | — | — | Usage:    ent_fire <target> [action] [value] [delay] |
+| `ent_create` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Creates an entity of the given type where the player is looking. |
+| `ent_remove` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Removes the given entity(s) 	Arguments:   	{entity_name} / {class_name} / no argument picks what player is loo |
+| `sv_showhitboxes` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Send server-side hitboxes for specified entity to client (NOTE:  this uses lots of bandwidth, use on listen se |
+| `debug_draw_box_depth_test` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | Toggle depth test for debug draw box functionality |
+| `titan_step_damage_debug` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Draw debug box of titan step damage volume |
+| `ent_text_radius` | command | — | — | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Displays text debugging information about the given entity(ies) on top of the entity (See Overlay Text) 	Argum |
+| `showtriggers_distance` | convar | — | — | — | yes (cheat) | yes (cheat) | yes (cheat) | Sets the distance from the player that triggers can be shown at. |
+| `bhit` | command | — | — | — | yes (dev-only) | yes (dev-only) | yes (dev-only, cheat) | Bullet-hit trajectory debug. |
+| `bhit_enable` | convar | — | — | — | yes (dev-only) | yes (dev-only) | yes (dev-only) | Enables bhit commands from the client |
 
 ### AI and navigation
 
-| Name | Kind | R1 | TFO | R2 | R5 | Help |
-| --- | --- | --- | --- | --- | --- | --- |
-| `ai_debug_nodes` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) |  |
-| `ai_debug_node_connect` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | Debug the attempted connection between two nodes |
-| `ai_debug_los` | convar | yes (cheat) | yes (cheat) | in game¹ | yes (cheat) | yes (cheat) | NPC Line-Of-Sight debug mode. If 1, solid entities that block NPC LOC will be highlighted with white bounding  |
-| `ai_debug_search_paths` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) |  |
-| `ai_show_path_search_nodes` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
-| `ai_show_hull_attacks` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) |  |
-| `ai_debug_squads` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) |  |
-| `ai_debug_enemies` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) |  |
-| `ai_drawbattlelines` | convar | yes (cheat) | yes (cheat) | — | — | — |  |
-| `ai_debug_auto_traverse` | convar | yes (cheat) | yes (cheat) | — | — | — |  |
-| `navmesh_draw_enable` | convar | — | — | — | — | yes (dev-only) | Enable the debug drawing of the NavMesh |
-| `navmesh_draw_poly_faces` | convar | — | — | — | — | yes (dev-only) | Draws the polygon faces of the NavMesh tiles |
-| `navmesh_draw_off_mesh_connections` | convar | — | — | — | — | yes (dev-only) | Draws the off-mesh connections of the NavMesh |
-| `navmesh_draw_traverse_portals` | convar | — | — | — | — | yes (dev-only) | Draws the traversal network connecting the polygons of the NavMesh |
-| `navmesh_draw_range` | convar | — | — | — | — | yes (dev-only) | Only draw tiles within this distance from our camera |
-| `navmesh_debug_type` | convar | — | — | — | yes (dev-only) | — | NavMesh debug draw hull index. |
-| `navmesh_draw_poly_bounds` | convar | — | — | — | yes (dev-only) | — | Draws the bounds of the NavMesh polys. |
-| `navmesh_hotswap` | command | — | — | — | yes (dev-only) | yes (dev-only) | Hot swap the NavMesh for all hulls. |
-| `ai_script_nodes_draw_range` | convar | — | — | — | yes (dev-only) | yes (dev-only) | Debug draw AIN script nodes ranging from shift index to this cvar. |
-| `BuildAINFile` | command | — | yes | yes | yes (dev-only) | yes (dev-only) | Build and Save the AI Node Graph (restarts map) |
-| `dump_ainet_to_disk` | command | — | yes | — | — | — | Dumps the currently loaded AINet to disk |
+| Name | Kind | R1 | TFO | R2 | R5R 2.3 | R5R 2.6 | R5F | Help |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ai_debug_nodes` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `ai_debug_node_connect` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Debug the attempted connection between two nodes |
+| `ai_debug_los` | convar | yes (cheat) | yes (cheat) | in game¹ | yes (cheat) | yes (cheat) | yes (cheat) | NPC Line-Of-Sight debug mode. If 1, solid entities that block NPC LOC will be highlighted with white bounding  |
+| `ai_debug_search_paths` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `ai_show_path_search_nodes` | convar | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `ai_show_hull_attacks` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `ai_debug_squads` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `ai_debug_enemies` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) |  |
+| `ai_drawbattlelines` | convar | yes (cheat) | yes (cheat) | — | — | — | — |  |
+| `ai_debug_auto_traverse` | convar | yes (cheat) | yes (cheat) | — | — | — | — |  |
+| `navmesh_draw_enable` | convar | — | — | — | — | yes (dev-only) | — | Enable the debug drawing of the NavMesh |
+| `navmesh_draw_poly_faces` | convar | — | — | — | — | yes (dev-only) | — | Draws the polygon faces of the NavMesh tiles |
+| `navmesh_draw_off_mesh_connections` | convar | — | — | — | — | yes (dev-only) | — | Draws the off-mesh connections of the NavMesh |
+| `navmesh_draw_traverse_portals` | convar | — | — | — | — | yes (dev-only) | — | Draws the traversal network connecting the polygons of the NavMesh |
+| `navmesh_draw_range` | convar | — | — | — | — | yes (dev-only) | — | Only draw tiles within this distance from our camera |
+| `navmesh_debug_type` | convar | — | — | — | yes (dev-only) | — | — | NavMesh debug draw hull index. |
+| `navmesh_draw_poly_bounds` | convar | — | — | — | yes (dev-only) | — | — | Draws the bounds of the NavMesh polys. |
+| `navmesh_hotswap` | command | — | — | — | yes (dev-only) | yes (dev-only) | yes (dev-only) | Hot swap the NavMesh for all hulls. |
+| `ai_script_nodes_draw_range` | convar | — | — | — | yes (dev-only) | yes (dev-only) | — | Debug draw AIN script nodes ranging from shift index to this cvar. |
+| `BuildAINFile` | command | — | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Build and Save the AI Node Graph (restarts map) |
+| `dump_ainet_to_disk` | command | — | yes | — | — | — | — | Dumps the currently loaded AINet to disk |
 
 ### Bots
 
-| Name | Kind | R1 | TFO | R2 | R5 | Help |
-| --- | --- | --- | --- | --- | --- | --- |
-| `bot_loadout` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Override bot loadout |
-| `bot_dontmove` | convar | yes (cheat) | yes (cheat) | — | — | — |  |
-| `bot_follow` | convar | yes (cheat) | yes (cheat) | — | — | — | When on, bot will follow the player. |
-| `bot_mimic` | convar | yes | yes | — | — | — | Bot uses usercmd of player by index. |
-| `bot_kill` | command | yes (cheat) | yes (cheat) | — | — | — | <bot id>.  Kills bot. |
-| `bot_equip` | command | yes (cheat) | yes (cheat) | — | — | — | Generate an item and have the bot equip it. 	Format: bot_equip <bot name> <item name> |
-| `bot_flipout` | convar | yes | yes | — | — | — | When on, all bots fire their guns. |
-| `bot_lagOut` | convar | — | — | yes | yes (dev-only) | yes (dev-only) | Cause bots to lag out |
+| Name | Kind | R1 | TFO | R2 | R5R 2.3 | R5R 2.6 | R5F | Help |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `bot_loadout` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Override bot loadout |
+| `bot_dontmove` | convar | yes (cheat) | yes (cheat) | — | — | — | — |  |
+| `bot_follow` | convar | yes (cheat) | yes (cheat) | — | — | — | — | When on, bot will follow the player. |
+| `bot_mimic` | convar | yes | yes | — | — | — | — | Bot uses usercmd of player by index. |
+| `bot_kill` | command | yes (cheat) | yes (cheat) | — | — | — | — | <bot id>.  Kills bot. |
+| `bot_equip` | command | yes (cheat) | yes (cheat) | — | — | — | — | Generate an item and have the bot equip it. 	Format: bot_equip <bot name> <item name> |
+| `bot_flipout` | convar | yes | yes | — | — | — | — | When on, all bots fire their guns. |
+| `bot_lagOut` | convar | — | — | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Cause bots to lag out |
+| `bot_difficulty` | convar | — | — | — | — | — | yes | Difficulty every autoplayer scales from. The scaling and dynamic systems rewrite it at runtime. |
+| `bot_aim_log` | convar | — | — | — | — | — | yes (dev-only) | Log [BOT-AIM] hit rolls once every 2 seconds per firing autoplayer. |
+| `bot_combat_log` | convar | — | — | — | — | — | yes (dev-only) | Log [BOT-COMBAT] at most once per autoplayer per second. |
 
 ### Time, state and logging
 
-| Name | Kind | R1 | TFO | R2 | R5 | Help |
-| --- | --- | --- | --- | --- | --- | --- |
-| `host_timescale` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Prescale the clock by this amount. |
-| `phys_timescale` | convar | yes | yes | in game¹ | yes (dev-only) | yes (dev-only) | Scale time for physics |
-| `sv_gravity` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | World gravity. |
-| `sv_pausable` | convar | yes | yes | yes | yes (cheat) | yes (cheat) | Whether the server is allowed to pause |
-| `pause` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | Toggle the server pause state. |
-| `unpause` | command | yes | yes | yes | — | — | Unpause the game. |
-| `map` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | Start playing on specified map. |
-| `changelevel` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | Change server to the specified map |
-| `mp_gamemode` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | Game mode name |
-| `developer` | convar | yes | yes | yes | yes | yes | Set developer message level |
-| `condump` | command | yes | yes | yes | — | — | dump the text currently in the console to condumpXX.log |
-| `con_logfile` | convar | yes | yes | in game¹ | yes (dev-only) | yes (dev-only) | Console output gets written to this file |
-| `find` | command | yes | yes | — | — | — | Find commands, convars, and other settings with the specified string in their name/help text. |
-| `help` | command | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | Find help about a convar/concommand. |
-| `convar_findByFlags` | command | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | Find concommands by flags. |
-| `weapon_reparse` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Reloads the weapon script files |
-| `give` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Give weapon to player. |
-| `sv_cheats` | convar | yes | yes | in game¹ | yes | yes | Allow cheats on server |
-| `script` | command | — | yes | in game¹ | yes (cheat) | yes (dev-only, cheat) | Execute Squirrel code in server context |
-| `script_client` | command | — | — | in game¹ | yes (cheat) | yes (dev-only, cheat) | Run input code as CLIENT script on the VM. |
-| `script_ui` | command | — | — | in game¹ | yes (cheat) | yes (dev-only, cheat) | Run input code as UI script on the VM. |
-| `playlist_reload` | command | — | — | — | — | yes | Reloads the playlists file |
-| `reload_playlists` | command | — | — | — | yes | — | Reloads the playlists file. |
-| `launchplaylist` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | Launch the current playlist |
-| `cvarlist` | command | — | yes | — | — | — | Lists all cvars |
-| `convar_list` | command | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | Show the list of convars/concommands. |
-| `get_cvar` | command | — | yes | — | — | — | Print cvar's value |
-| `reload_mods` | command | — | yes | in game¹ | — | — | Reloads TFORevive mods |
+| Name | Kind | R1 | TFO | R2 | R5R 2.3 | R5R 2.6 | R5F | Help |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `host_timescale` | convar | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Prescale the clock by this amount. |
+| `phys_timescale` | convar | yes | yes | in game¹ | yes (dev-only) | yes (dev-only) | yes (dev-only) | Scale time for physics |
+| `sv_gravity` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | World gravity. |
+| `sv_pausable` | convar | yes | yes | yes | yes (cheat) | yes (cheat) | yes (cheat) | Whether the server is allowed to pause |
+| `pause` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Toggle the server pause state. |
+| `unpause` | command | yes | yes | yes | — | — | — | Unpause the game. |
+| `map` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Start playing on specified map. |
+| `changelevel` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Change server to the specified map |
+| `mp_gamemode` | convar | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Game mode name |
+| `developer` | convar | yes | yes | yes | yes | yes | yes | Set developer message level |
+| `condump` | command | yes | yes | yes | — | — | — | dump the text currently in the console to condumpXX.log |
+| `con_logfile` | convar | yes | yes | in game¹ | yes (dev-only) | yes (dev-only) | yes (dev-only) | Console output gets written to this file |
+| `find` | command | yes | yes | — | — | — | — | Find commands, convars, and other settings with the specified string in their name/help text. |
+| `help` | command | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | Find help about a convar/concommand. |
+| `convar_findByFlags` | command | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | Find concommands by flags. |
+| `weapon_reparse` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Reloads the weapon script files |
+| `give` | command | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | yes (cheat) | Give weapon to player. |
+| `sv_cheats` | convar | yes | yes | in game¹ | yes | yes | yes | Allow cheats on server |
+| `script` | command | — | yes | in game¹ | yes (cheat) | yes (dev-only, cheat) | yes (dev-only, cheat) | Execute Squirrel code in server context |
+| `script_client` | command | — | — | in game¹ | yes (cheat) | yes (dev-only, cheat) | — | Run input code as CLIENT script on the VM. |
+| `script_ui` | command | — | — | in game¹ | yes (cheat) | yes (dev-only, cheat) | — | Run input code as UI script on the VM. |
+| `playlist_reload` | command | — | — | — | — | yes | yes | Reloads the playlists file |
+| `reload_playlists` | command | — | — | — | yes | — | — | Reloads the playlists file. |
+| `launchplaylist` | command | yes | yes | yes | yes (dev-only) | yes (dev-only) | yes (dev-only) | Launch the current playlist |
+| `cvarlist` | command | — | yes | — | — | — | — | Lists all cvars |
+| `convar_list` | command | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | yes (dev-only) | Show the list of convars/concommands. |
+| `get_cvar` | command | — | yes | — | — | — | — | Print cvar's value |
+| `reload_mods` | command | — | yes | in game¹ | — | — | — | Reloads TFORevive mods |
+| `cl_liveapi_enabled` | convar | — | — | — | — | — | yes |  |
+| `cl_liveapi_use_websocket` | convar | — | — | — | — | — | yes |  |
+| `cl_liveapi_write_event_file` | convar | — | — | — | — | — | yes |  |
 
 ## Regenerate
 
@@ -285,8 +326,13 @@ python tools/convar_scan.py reports/convars/r5-s3/scan.json "F:/Games/Apex Detou
 python tools/convar_scan.py reports/convars/r5reloaded/scan.json `
     "F:/Games/Apex Detours/R5Reloaded/r5apex.exe" "F:/Games/Apex Detours/R5Reloaded/gamesdk.dll" `
     "F:/Games/Apex Detours/R5Reloaded/dedicated.dll" "F:/Games/Apex Detours/R5Reloaded/bin/x64_retail/client.dll"
+python tools/convar_scan.py reports/convars/r5flowstate/client.json `
+    "F:/Games/Apex Detours/Flowstate/r5apex_dx12.exe" "F:/Games/Apex Detours/Flowstate/client_s30.dll"
+python tools/convar_scan.py reports/convars/r5flowstate/server.json `
+    "F:/Games/Apex Detours/Flowstate/r5apex_ds.exe" "F:/Games/Apex Detours/Flowstate/server.dll" `
+    "F:/Games/Apex Detours/Flowstate/r5apex_listen_host.dll"
 ```
 
 Each Apex executable takes about two minutes. Full lists stay in the ignored
 `reports/` folder; this page keeps only the entries useful for tests. Scanned
-2026-11-19.
+2026-11-19 (R5Flowstate 2026-11-20).
