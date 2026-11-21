@@ -14,6 +14,11 @@ Applicable tool IDs:
 
 Do not claim full runtime parity with R2 or R1 toolchains.
 
+Before any R5 runtime operation, ask the user for the exact R5Reloaded or
+R5Flowstate install folder and identify whether the operation targets the S21
+client, S3 dedicated server or R5Reloaded runtime. Do not assume an Apex or
+Flowstate install path.
+
 Runtime/build routing and additional developer sources: [source guide](../../docs/runtime-sources.md).
 Modern seasons: R5Flowstate (successor to R5Valkyrie) is the S21-client/S3-dedicated
 bridge; its tools are the `r5flowstate-*` entries (map compiler, S30 port kit, RePak,

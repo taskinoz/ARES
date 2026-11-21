@@ -25,7 +25,6 @@ verification:
   status: partial
   last_checked: "2026-11-12"
   notes:
-    - Private repository; access is required to build it.
     - "Corpus: 1,318 of 1,789 retail S0-S3 models round-trip in full mode; collision for 1,123 of 1,128 BVH models."
     - "R5R v2.6.52 runtime evidence: traces, physics drops and ragdoll switches (see its VALIDATION.md)."
 inspection:

@@ -40,7 +40,9 @@ screenshots are `partial`.
   cover Valkyrie or later Apex seasons. Consult `docs/runtime-sources.md` before
   adapting hooks or protocols. Stop at static checks if no matching runtime is available.
 - Confirm the game folder exists. Ask the user for it if it's unknown; don't
-  search whole drives. Northstar: `$ARES_R2_GAME`, or the folder that holds
+  search whole drives. Ask for the exact install folder and runtime/executable
+  location for R1Delta, TFO, Northstar, R5Reloaded or R5Flowstate; do not assume
+  a common drive or folder. Northstar: `$ARES_R2_GAME`, or the folder that holds
   `NorthstarLauncher.exe`.
 - List running game processes (`Get-CimInstance Win32_Process` for
   `NorthstarLauncher.exe`, `Titanfall2.exe`, `TFO.exe`, `Titanfall.exe`, `r5apex*`).

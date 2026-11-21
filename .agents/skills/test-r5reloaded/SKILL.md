@@ -6,7 +6,8 @@ description: Package Apex (S3) models with RePak and test them in an isolated R5
 # Test models in R5Reloaded
 
 Windows only. Needs the user's own R5Reloaded install and a separately installed RePak.
-Nothing from the game is bundled or copied out.
+Nothing from the game is bundled or copied out. Ask the user for the exact
+R5Reloaded install folder and separately installed RePak location before running.
 
 ## 1. Build runtime assets
 

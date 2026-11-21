@@ -24,6 +24,12 @@ Do not assume binary, asset, scripting, or protocol compatibility between target
 8. Confirm available test environment.
 9. Execute and validate.
 
+For runtime or harness operations that require an installed game, emulator or
+console, ask the user for the exact install folder, executable location or linked
+environment before searching or launching. Do not assume common paths. Game builds
+and forks must also be identified; do not treat separate clients or servers as
+interchangeable.
+
 ## Source of truth
 
 - ARES owns cross-project conventions.
