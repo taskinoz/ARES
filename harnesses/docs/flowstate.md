@@ -26,8 +26,8 @@ Apex; the [R5Reloaded harness](r5reloaded.md) is dedicated-server only.
 ## Run
 
 ```powershell
-python harnesses/adapters/flowstate_harness.py --game "F:/Games/Apex Detours/Flowstate" `
-    --runtime "F:/Games/Apex Detours/.ares-flowstate" --map mp_rr_canyonlands_staging_mu1 `
+python harnesses/adapters/flowstate_harness.py --game "C:/Games/Flowstate" `
+    --runtime "C:/Games/.ares-flowstate" --map mp_rr_canyonlands_staging_mu1 `
     --playlist survival_dev --checks views.json --output reports/flowstate-run
 ```
 

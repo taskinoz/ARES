@@ -325,15 +325,15 @@ python tools/convar_scan.py reports/convars/r2-northstar/scan.json --game C:/Gam
 python tools/convar_scan.py reports/convars/tfo/scan.json --game "D:/Games/Titanfall Online"
 python tools/convar_scan.py reports/convars/r1-r1delta/scan.json `
     $env:LOCALAPPDATA/R1Delta/app-3.0.5/r1delta/bin/*.dll --game D:/Games/Titanfall
-python tools/convar_scan.py reports/convars/r5-s3/scan.json "F:/Games/Apex Detours/Apex s3/r5apex.exe"
+python tools/convar_scan.py reports/convars/r5-s3/scan.json "C:/Games/Apex s3/r5apex.exe"
 python tools/convar_scan.py reports/convars/r5reloaded/scan.json `
-    "F:/Games/Apex Detours/R5Reloaded/r5apex.exe" "F:/Games/Apex Detours/R5Reloaded/gamesdk.dll" `
-    "F:/Games/Apex Detours/R5Reloaded/dedicated.dll" "F:/Games/Apex Detours/R5Reloaded/bin/x64_retail/client.dll"
+    "C:/Games/R5Reloaded/r5apex.exe" "C:/Games/R5Reloaded/gamesdk.dll" `
+    "C:/Games/R5Reloaded/dedicated.dll" "C:/Games/R5Reloaded/bin/x64_retail/client.dll"
 python tools/convar_scan.py reports/convars/r5flowstate/client.json `
-    "F:/Games/Apex Detours/Flowstate/r5apex_dx12.exe" "F:/Games/Apex Detours/Flowstate/client_s30.dll"
+    "C:/Games/Flowstate/r5apex_dx12.exe" "C:/Games/Flowstate/client_s30.dll"
 python tools/convar_scan.py reports/convars/r5flowstate/server.json `
-    "F:/Games/Apex Detours/Flowstate/r5apex_ds.exe" "F:/Games/Apex Detours/Flowstate/server.dll" `
-    "F:/Games/Apex Detours/Flowstate/r5apex_listen_host.dll"
+    "C:/Games/Flowstate/r5apex_ds.exe" "C:/Games/Flowstate/server.dll" `
+    "C:/Games/Flowstate/r5apex_listen_host.dll"
 ```
 
 Each Apex executable takes about two minutes. Full lists stay in the ignored

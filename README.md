@@ -130,7 +130,6 @@ CUSA04013). The adapters work with any PS4 title.
 
 - https://github.com/taskinoz/r1-model-compiler
 - https://github.com/taskinoz/r2-model-compiler
-- https://github.com/taskinoz/r5-model-compiler (private)
 - https://github.com/taskinoz/PS4-Northstar
 - https://github.com/taskinoz/apex-to-titanfall-2
 - https://github.com/taskinoz/Titanfall-2-Custom-Maps

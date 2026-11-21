@@ -14,8 +14,8 @@ The dedicated server is started the way the R5Flowstate launcher starts it
 R5F_LOCAL_RCON, frames unencrypted on loopback). The client then connects to it.
 Only the processes this script starts are stopped.
 
-  python harnesses/adapters/flowstate_harness.py --game "F:/Games/Apex Detours/Flowstate" \
-      --runtime "F:/Games/Apex Detours/.ares-flowstate" --map mp_rr_canyonlands_staging_mu1 \
+  python harnesses/adapters/flowstate_harness.py --game "C:/Games/Flowstate" \
+      --runtime "C:/Games/.ares-flowstate" --map mp_rr_canyonlands_staging_mu1 \
       --playlist survival_dev --checks views.json --output reports/flowstate-run
 
 views.json: {"views": [[x, y, z, pitch, yaw], ...], "hide_hud": true, "relative_to_spawn": false,
