@@ -1,6 +1,6 @@
 ---
 name: run-harness
-description: Load a map or mod in a real Respawn game (Titanfall 2/Northstar, Titanfall Online, R1Delta, R5Reloaded) and run traces, spawn probes, physics drops and screenshots through the ARES harnesses. Use when a map, mod or conversion must be proven to work in the engine, not only to parse.
+description: Load a map or mod in a real Respawn game (Titanfall 2/Northstar, Titanfall Online, R1Delta, R5Reloaded, R5Flowstate) and run traces, spawn probes, physics drops and screenshots through the ARES harnesses. Use when a map, mod or conversion must be proven to work in the engine, not only to parse.
 ---
 
 # Run a runtime harness
@@ -16,6 +16,7 @@ hold the full option lists; read the guide for your target before the first run.
 | Titanfall Online | `python harnesses/adapters/tfo_harness.py` | `harnesses/docs/tfo.md` |
 | Titanfall 1 / R1Delta | `python harnesses/adapters/r1_harness.py` | `harnesses/docs/r1delta.md` |
 | Apex / R5Reloaded | `python harnesses/adapters/r5_harness.py` + `r5_harnessctl.py` | `harnesses/docs/r5reloaded.md` |
+| Apex S21 / R5Flowstate (rendered views, screenshots) | `python harnesses/adapters/flowstate_harness.py` | `harnesses/docs/flowstate.md` |
 
 These are **map and mod** harnesses. For compiled or converted **models**, use
 the `ares` package instead (`python -m ares` lists everything):

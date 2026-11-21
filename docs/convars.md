@@ -117,6 +117,9 @@ both, 1,774 only on the client and 2,193 only on the server.
 | Clean frame | `cl_drawhud 0` + `r_drawvgui 0` | TFO | Also hides game-mode announcements and subtitles |
 | Discovery | `help <name>`, `convar_find <text>` | R2 | Works; `cvarlist` and `find` are unknown commands |
 | Discovery | `find <text>` | R1Delta 3.0.5 | Works over the control server; `cvarlist` output isn't captured |
+| Free camera | `CreateWorldCrawlerCamera()`, `SetWorldCrawlerCameraPositionAndAngles()` (client script) | R5Flowstate S21 (Firing Range) | Renders any pose without moving the player; used by the Flowstate harness |
+| Clean frame | `DevHud_ClientSet( true )` (client script) | R5Flowstate S21 | Hides the RUI HUD that `cl_drawhud 0` leaves on screen |
+| Named engine screenshot | `screenshot <name>` | R5Flowstate S21 | Writes `r2/screenshots/<name>.tga` in the game folder |
 
 TFO's engine `screenshot` crashed TFORevive in earlier tests, so the TFO
 harness still captures the window by default (see the

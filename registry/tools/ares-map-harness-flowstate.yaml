@@ -1,0 +1,38 @@
+id: ares-map-harness-flowstate
+name: ARES R5Flowstate map view harness
+description: "Renders map views in R5Flowstate (Apex S21 client against an S3 dedicated server) from an isolated copy: client script camera, hidden HUD, engine screenshots and frame review."
+repository: https://github.com/taskinoz/ARES
+targets: [r5]
+categories: [testing, runtime]
+capabilities: [runtime-testing, map-testing, screenshots]
+formats:
+  inputs: [json]
+  outputs: [json, png, log]
+integration:
+  type: local-adapter
+  harness: partially-verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: b64e652a416739711b5560f6e436cbc494eb60a3
+  readme_path: harnesses/docs/flowstate.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/run-harness
+  harness_path: harnesses/adapters/flowstate_harness.py
+  license: GPL-2.0-or-later
+verification:
+  status: partial
+  last_checked: "2026-11-20"
+  notes:
+    - "R5FlowstateSDK005, Firing Range (mp_rr_canyonlands_staging_mu1, survival_dev): three spawn-relative World Crawler camera views captured as engine screenshots with the RUI HUD hidden (DevHud_ClientSet), frame review clean, player pose read over the launcher loopback RCON session, Saved Games settings restored, exit 0."
+    - "Install untouched: hard-linked isolated runtime with copied cfg, platform/cfg, mods, LiveAPI, r2 and bin; the per-run client mod and screenshots stay in the copy."
+    - "Other maps and modes, LiveAPI events and rendering checks beyond the frame review are not yet covered."
+inspection:
+  checked_at: "2026-11-20"
+  method: local-tests-and-native-run
+  evidence:
+    - harnesses/adapters/flowstate_harness.py
+    - harnesses/adapters/test_flowstate_harness.py
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/harnesses/docs/flowstate.md

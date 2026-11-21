@@ -9,6 +9,7 @@ Applicable tool IDs:
 - ares-rpak-packager
 - ares-model-harness-r5reloaded
 - ares-map-harness-r5reloaded
+- ares-map-harness-flowstate
 - ares-bsp-tools
 
 Do not claim full runtime parity with R2 or R1 toolchains.
@@ -26,3 +27,5 @@ the `r5-animation-converter` entry and its explicit experimental-output limits.
 Model tools (`ares/`): skills `inspect-respawn-model`, `test-r5reloaded`. Model harness: package with `python -m ares.r5.rpak`, run `python -m ares.harness.r5reloaded`; check collision with `validate-r5-collision`.
 
 Map tools: skill `inspect-bsp` (`tools/`, BSP v47, Apex RPak v8). Map harness: `python harnesses/adapters/r5_harness.py` + `r5_harnessctl.py` (SDK 2.3 dedicated; [guide](../../harnesses/docs/r5reloaded.md)). Server-side only; it does not check rendering. Skill `run-harness`.
+
+Rendered Apex views: `python harnesses/adapters/flowstate_harness.py` runs R5Flowstate (S21 client + S3 dedicated) from an isolated hard-linked copy, moves its client script camera, hides the HUD and takes engine screenshots ([guide](../../harnesses/docs/flowstate.md)).
