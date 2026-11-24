@@ -3,8 +3,11 @@
 Use R2-specific tools and confirm Northstar/runtime assumptions with upstream docs.
 
 Runtime forks and navigation sources: [routing guide](../../docs/runtime-sources.md).
-Ion and Prime are discovery references, not validated substitutes for the
-Northstar harness. For Recast work, use skill `build-navmesh` and registry entries
+Ion has an isolated adapter and MCP client (`ion_harness.py`,
+`ares.harness.ion_mcp`, registry `ares-ion-harness`) with a native stock
+`mp_glitch`/`tdm` run on 2026-11-24; broader Ion coverage is unvalidated. Prime
+remains a discovery reference. Neither is a general substitute for the Northstar
+harness. For Recast work, use skill `build-navmesh` and registry entries
 `recast-respawn` / `r2recast`; their game exports are not yet ARES-verified.
 
 Use `--capability campaign-modding` for Icepick source and scripting references
@@ -21,6 +24,7 @@ Applicable tool IDs:
 - ares-model-readers
 - ares-model-harness-northstar
 - ares-map-harness-northstar
+- ares-ion-harness
 - ares-bsp-tools
 - ares-tf2-map-edits
 - ares-northstar-recipes
@@ -31,7 +35,7 @@ Applicable tool IDs:
 
 Model tools (`ares/`): skills `inspect-respawn-model`, `test-northstar`. Model harness: `python -m ares.harness.northstar` (isolated Northstar profile).
 
-Map tools: skill `inspect-bsp` (`tools/`, BSP v37, RPak v7, VPK, STBSP). Map harness: `python harnesses/adapters/northstar_harness.py` (isolated `R2AresHarness` profile; [guide](../../harnesses/docs/northstar.md)). Mod logic: skill `test-northstar-mod`. Skill `run-harness`.
+Map tools: skill `inspect-bsp` (`tools/`, BSP v37, RPak v7, VPK, STBSP). Map harness: `python harnesses/adapters/northstar_harness.py` (isolated `R2AresHarness` profile; [guide](../../harnesses/docs/northstar.md)). Ion: `python harnesses/adapters/ion_harness.py` stages a separate runtime/profile (`R2AresIon`) and observes the embedded MCP server; read [ion.md](../../harnesses/docs/ion.md) first and do not modify the installed Northstar client. Mod logic: skill `test-northstar-mod`. Skill `run-harness`.
 
 Map optimisation and release: skills `optimise-tf2-map`, `add-tf2-prop-shadows`, `add-tf2-cubemaps`, `accept-northstar-map`, `publish-thunderstore`. Engine findings (cells cull entities, the per-frame world budget, CSM and cubemap layouts): [research note](../../docs/research/tf2-map-rendering-and-visibility.md).
 

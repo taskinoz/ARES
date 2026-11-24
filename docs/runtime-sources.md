@@ -31,7 +31,7 @@ under `r5` and record its exact SDK/build and season.
 | --- | --- |
 | [R1Delta](https://github.com/r1delta/r1delta), [docs](https://github.com/r1delta/docs) | R1 only. Keep R1Delta and TFO runtime evidence separate. |
 | [Northstar](https://github.com/R2Northstar/NorthstarLauncher), [wiki](https://docs.northstar.tf/Wiki/), [modding](https://docs.northstar.tf/Modding/) | R2. Existing ARES Northstar evidence is tied to the builds in the harness registry, not every new launcher revision. |
-| [Ion releases](https://github.com/R2Ion/Ion), [launcher source](https://github.com/r2ion/IonLauncher) | R2 candidate, not an ARES-validated runtime. Release and launcher revisions differ. Release README documents `NSIsVanilla()` instead of compile-time `VANILLA` checks for runtime switching. Recheck UI/server/client initialization and mod identity on Ion. |
+| [Ion releases](https://github.com/R2Ion/Ion), [launcher source](https://github.com/r2ion/IonLauncher) | R2 fork with an isolated ARES adapter/MCP client (`ares-ion-harness`) and one native stock `mp_glitch` check (2026-11-24); broader coverage is not ARES-validated. Release and launcher revisions differ. Its MCP server is embedded in `Northstar.dll` (`2025-06-18`, `POST /`, `Mcp-Session-Id`, `mcp_start_http`); [ion.md](../harnesses/docs/ion.md) stages a separate install and never replaces Northstar. Release README documents `NSIsVanilla()` instead of compile-time `VANILLA` checks. Recheck UI/server/client initialization and mod identity on Ion. |
 | [Northstar Prime](https://github.com/F1F7Y/NorthstarPrime) | `primedev` reference. Its README warns users must fix their own problems. Do not present it as the maintained Northstar adapter. |
 | [Mauler125 R5 SDK](https://github.com/Mauler125/r5sdk) | Inspected `p4sync` README lists S3 N1094. ARES's legacy SDK 2.3 dedicated adapter is not proof of compatibility with every source revision. |
 | [Valkyrie SDK](https://github.com/r5valkyrie/r5sdk), [organization](https://github.com/orgs/r5valkyrie/repositories) | R5 (Apex Legends) later-season runtime. The inspected SDK README still lists S3 N1094; that repository alone does not resolve later-season compatibility. |
@@ -113,6 +113,12 @@ Do not assume another S21 SDK includes this link without inspecting that build.
 This is a high-value future integration: VM execution, events, named map places,
 player control and client screenshots. No MCP installation, SDK deployment or
 ARES agent-link runtime validation was performed during this audit.
+
+R1Delta and Ion also expose MCP-style JSON-RPC over loopback HTTP, but their
+protocol versions, session rules and tool schemas are implementation-specific.
+ARES has standalone clients for both; neither proves compatibility with AGENTLINK
+or with another Northstar fork. Ion's MCP server is compiled into its
+`Northstar.dll` and must be started explicitly with `mcp_start_http`.
 
 ## Additional developer sources
 

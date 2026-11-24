@@ -1,0 +1,46 @@
+id: ares-ion-harness
+name: ARES Ion isolated harness and MCP client
+description: "Titanfall 2 / Ion map runtime on a separate install: staged runtime and profile, ARES map checks, embedded MCP state/log capture, and a standalone MCP client."
+repository: https://github.com/taskinoz/ARES
+targets: [r2]
+categories: [testing, runtime]
+capabilities: [runtime-testing, map-testing, agent-control, screenshots]
+formats:
+  inputs: [bsp, northstar-mod, json]
+  outputs: [json, png, log]
+integration:
+  type: local-adapter
+  harness: verified
+  agent_instructions: verified
+  setup: ares
+upstream:
+  default_branch: main
+  commit: c6f21fd7b2c81ce4f932671418c2d54917433384
+  readme_path: harnesses/docs/ion.md
+  agents_path: AGENTS.md
+  skills_path: .agents/skills/run-harness
+  harness_path: harnesses/adapters/ion_harness.py
+  license: GPL-2.0-or-later
+verification:
+  status: verified
+  last_checked: "2026-11-24"
+  notes:
+    - "Offline tests pass for MCP handshake/session headers, tool arguments, isolated staging, ownership markers, profile DLL/plugin staging and result shape."
+    - "Native run on 2026-11-24 (Ion 1.31.15, runtime C:/Games/Titanfall2-Ion, profile R2AresIon, stock mp_glitch/tdm): map loaded, checks finished, trace Z 768.03125, mode check ran, MCP reachable with all five tools, no script errors, crash dumps or leftover processes/ports. Evidence: reports/ion-runtime-20261124/run4/."
+    - "MCP protocol 2025-06-18, five tools, session header, POST / and DELETE / confirmed from IonLauncher source at ae960ecc405b81e2eae307e9c0e318388daa39ea and exercised natively."
+    - "The source game install and its R2Northstar profiles/mods are never written; the default isolated runtime is a sibling folder such as C:/Games/Titanfall2-Ion."
+    - "The adapter copies Ion's Northstar.dll and plugins into R2AresIon before launch; without that the launcher falls back to the source install's DLL and Ion built-ins are missing."
+    - "An exploratory spawn_probe at [0, 0, 500] returned floor=False/titan=False; it was not part of the verified checks. Custom maps, mods, gamemodes and visual review remain unvalidated."
+inspection:
+  checked_at: "2026-11-24"
+  method: local-tests-and-native-run
+  evidence:
+    - harnesses/adapters/ion_harness.py
+    - harnesses/adapters/test_ion_harness.py
+    - ares/harness/ion_mcp.py
+    - tests/test_harness_ion_mcp.py
+    - harnesses/docs/ion.md
+    - https://github.com/r2ion/IonLauncher/blob/ae960ecc405b81e2eae307e9c0e318388daa39ea/src/engine/mcp_server.cpp
+documentation:
+  - https://github.com/taskinoz/ARES/blob/main/harnesses/docs/ion.md
+  - https://github.com/r2ion/IonLauncher

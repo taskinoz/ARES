@@ -19,15 +19,16 @@ upstream:
   license: MIT
 verification:
   status: partial
-  last_checked: "2026-11-17"
+  last_checked: "2026-11-24"
   notes:
-    - Source metadata and Ion release README inspected; no ARES Ion runtime validation.
+    - Source metadata and Ion release README inspected; scoped native ARES validation is recorded under ares-ion-harness (stock mp_glitch/tdm), not for every Ion build or mod.
     - Ion release README directs scripts to NSIsVanilla() instead of compile-time VANILLA checks; do not assume Northstar UI hooks are interchangeable.
     - Release repository r2ion/Ion revision 5f73efa5c12b82d906182382805ca8456d3425a0 is distinct from the launcher source revision.
+    - 'The MCP server is embedded in Northstar.dll, not a standalone plugin: protocol 2025-06-18, POST /, GET /health, Mcp-Session-Id and concommand mcp_start_http. See registry entry ares-ion-harness for the client and isolated adapter, including the native stock-map run.'
 inspection:
   checked_at: "2026-11-17"
   method: github-api-readme-commit
-  evidence: ["commit:ae960ecc405b81e2eae307e9c0e318388daa39ea", "r2ion/Ion@5f73efa5c12b82d906182382805ca8456d3425a0:README.md"]
+  evidence: ["commit:ae960ecc405b81e2eae307e9c0e318388daa39ea", "r2ion/Ion@5f73efa5c12b82d906182382805ca8456d3425a0:README.md", "ae960ecc405b81e2eae307e9c0e318388daa39ea:src/engine/mcp_server.cpp"]
 documentation:
   - https://github.com/R2Ion/Ion
   - https://github.com/R2Ion

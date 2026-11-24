@@ -28,8 +28,9 @@ the token and HTTP opt-ins before changing local-server settings. These changes
 have offline regression coverage, and the opted-in guard path was verified
 natively on Northstar 1.31.15 (`mp_glitch`, 2026-11-18).
 
-Ion and Prime are source references, not validated adapter replacements. See
-[runtime source routing](../../docs/runtime-sources.md).
+Ion has a scoped isolated adapter (stock `mp_glitch` verified 2026-11-24);
+Prime is a source reference. Neither is a validated general replacement for
+this Northstar adapter. See [runtime source routing](../../docs/runtime-sources.md).
 
 ## Requirements
 

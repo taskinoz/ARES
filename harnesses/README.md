@@ -14,6 +14,7 @@ current Phase 2 validation scope and remaining acceptance gates.
 | Target | Adapter | Game control | Guide |
 | --- | --- | --- | --- |
 | R2: Titanfall 2 / Northstar | `northstar_harness.py` | Loopback HTTP; `ARES.MapHarness` mod polls it | [northstar.md](docs/northstar.md) |
+| R2: Titanfall 2 / Ion | `ion_harness.py` (+ `ares/harness/ion_mcp.py`) | Separate runtime/profile; embedded MCP plus `ARES.MapHarness` | [ion.md](docs/ion.md) (native stock `mp_glitch` verified 24 Nov 2026) |
 | TFO: Titanfall Online | `tfo_harness.py` | Temporary mod with a `_mapspawn` hook; reads `tforevive.log` | [tfo.md](docs/tfo.md) |
 | R1: Titanfall 1 / R1Delta | `r1_harness.py` | R1Delta's built-in JSON-RPC (MCP) server | [r1delta.md](docs/r1delta.md) |
 | R5: Apex / R5Reloaded SDK 2.3 | `r5_harness.py`, `r5_harnessctl.py`, `r5_harness_smoke.py` | Native protobuf netconsole behind an HTTP controller | [r5reloaded.md](docs/r5reloaded.md) |
@@ -28,7 +29,7 @@ checks format; success and failure are log patterns you supply.
 
 ## Shared checks format
 
-The TFO, R1Delta and Northstar adapters accept the same core `checks.json`
+The TFO, R1Delta, Northstar and Ion adapters accept the same core `checks.json`
 keys and print the same event lines, so results from different engines compare
 line for line:
 
@@ -50,29 +51,34 @@ VIEW 0 captured=True
 `expect` rows are `[check index, minimum Z, maximum Z]`. A failed expectation
 makes the command exit non-zero. Each adapter adds its own keys: physics drops
 for TFO and R1Delta, and spawn probes, entity counts and settle time for
-Northstar. Only Northstar rejects keys it doesn't support.
+Northstar and Ion. Ion also records MCP state and a log tail. Only Northstar
+rejects keys it doesn't support.
 
 ## Lifecycle and safety
 
 Every adapter follows the same lifecycle (see [the contract](../docs/harness-contract.md)):
 
 1. **Prepare.** Stage the map/mods in an isolated place: a separate Northstar
-   profile, a temporary TFO mod or R1Delta addon, or an owned R5 playlist copy.
+   profile, an owned Ion runtime/profile copy, a temporary TFO mod or R1Delta
+   addon, or an owned R5 playlist copy.
    Staged folders carry an owner marker. A folder the harness doesn't own is
    never overwritten.
 2. **Execute.** Launch the game with loopback-only control and a random token.
 3. **Validate.** Run checks, capture views, scan logs for script errors.
-4. **Report.** Write `report.json` (raw events) and, for Northstar,
+4. **Report.** Write `report.json` (raw events) and, for Northstar and Ion,
    `result.json` in the [result schema](contracts/result.schema.json).
 5. **Cleanup.** Quit the game, remove owned files and restore
-   `enabledmods.json`/`addonlist.txt` byte for byte, even after failures.
+   `enabledmods.json`/`addonlist.txt` byte for byte, even after failures. Ion
+   keeps its marked runtime folder for reuse but leaves the source install alone.
 
 Rules for agents:
 
-- Don't touch the player's main profile (`R2Northstar`) or any dedicated server
-  profile. Use the adapter's default isolated profile.
+- Don't touch the player's main profile (`R2Northstar`), any dedicated server
+  profile, or an existing Northstar install. Use the adapter's default isolated
+  profile; Ion stages a separate runtime copy and profile (`R2AresIon`).
 - Check what's running before you launch. A dedicated server may own the default
-  port 37015; the Northstar adapter listens on `--hostport 37040`.
+  port 37015; the Northstar adapter listens on `--hostport 37040`, Ion on 37044
+  with MCP on 8766.
 - View captures read the screen. The game window must stay visible and
   unobstructed while views are captured.
 - A harness run is **runtime** verification only for what it checked. Traces

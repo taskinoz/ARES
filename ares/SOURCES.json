@@ -28,6 +28,12 @@
     "repository": "taskinoz/r1-model-compiler",
     "source_sha256": "a9de8623ae788baea7eea18bc3eb921c0bcb108be3c07dd48a9c2cf7d617ad5d"
   },
+  "harness/ion_mcp.py": {
+    "commit": "c6f21fd7b2c81ce4f932671418c2d54917433384",
+    "path": "ares/harness/ion_mcp.py",
+    "repository": "taskinoz/ARES",
+    "note": "ARES-authored MCP client; protocol evidence is recorded in registry/tools/ion-launcher.yaml and registry/tools/ares-ion-harness.yaml."
+  },
   "harness/r5reloaded.py": {
     "commit": "9356555d02cb49b14c264d7f1a5e7cbe05c4cd63",
     "path": "tools/ingame54.py",

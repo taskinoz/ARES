@@ -9,7 +9,7 @@ ARES is an agent-first, documentation-driven repository for discovering and orch
 
 - R1: Titanfall 1 / R1Delta
 - TFO: Titanfall Online
-- R2: Titanfall 2 / Northstar
+- R2: Titanfall 2 / Northstar (plus a verified isolated Ion adapter)
 - R5: Apex Legends / R5Reloaded
 
 ### TF1 / R1Delta and TFO compatibility
@@ -78,6 +78,10 @@ lists every tool and `python -m <module> --help` documents it.
 | R2 / Northstar | `ares.r2.mdl53`, `ares.source.ivp_phy` | `ares.harness.northstar` |
 | R5 / R5Reloaded | `ares.r5.mdl54`, `ares.r5.phy54`, `ares.r5.bvh54`, `ares.r5.compare_phy54`, `ares.r5.compare_bvh54` | `ares.r5.rpak` then `ares.harness.r5reloaded` |
 
+R2 also has a standard-library MCP client for Ion's embedded server:
+`python -m ares.harness.ion_mcp --help`. It drives console commands, Squirrel,
+game state and logs over loopback HTTP without modifying an installed client.
+
 `python -m ares.result <kind> report.json` converts a model-harness report into the
 ARES result contract (`harnesses/contracts/result.schema.json`). The tools are
 vendored from taskinoz/r1-, r2- and r5-model-compiler; `ares/SOURCES.json` records
@@ -99,6 +103,7 @@ Check a map statically first, then test it in the game.
   | Target | Harness | Guide |
   | --- | --- | --- |
   | R2 / Northstar | `northstar_harness.py` (run in game from ARES, 12 Nov 2026) | [northstar.md](harnesses/docs/northstar.md) |
+  | R2 / Ion | `ion_harness.py` (isolated runtime, stock `mp_glitch` verified 24 Nov 2026) | [ion.md](harnesses/docs/ion.md) |
   | TFO | `tfo_harness.py` | [tfo.md](harnesses/docs/tfo.md) |
   | R1 / R1Delta | `r1_harness.py` | [r1delta.md](harnesses/docs/r1delta.md) |
   | R5 / R5Reloaded | `r5_harness.py`, `r5_harnessctl.py`, `r5_harness_smoke.py` | [r5reloaded.md](harnesses/docs/r5reloaded.md) |
@@ -109,6 +114,10 @@ Check a map statically first, then test it in the game.
 python tools/inspect_bsp.py BUILD/mp_name.bsp
 python harnesses/adapters/northstar_harness.py --game C:/Games/Titanfall2 `
     --maps BUILD --map mp_name --mode tdm --checks checks.json --output reports/mp_name
+
+# Ion: stage a separate runtime first; no game or installed profile is modified
+python harnesses/adapters/ion_harness.py --game C:/Games/Titanfall2 `
+    --ion C:/Users/Tristan/Downloads/Ion.release.v1.31.15 --prepare-only
 ```
 
 

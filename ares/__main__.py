@@ -21,6 +21,7 @@ CATALOGUE = [
     ('ares.harness.tfo', ['tfo'], 'harness', 'Titanfall Online (TFORevive) native v52 smoke test'),
     ('ares.harness.r1delta', ['r1'], 'harness', 'R1Delta addon staging, telemetry collection and cleanup'),
     ('ares.harness.r1delta_mcp', ['r1'], 'harness', "client for R1Delta's MCP server (console, squirrel, state, log)"),
+    ('ares.harness.ion_mcp', ['r2'], 'harness', "client for Ion's MCP server (console, squirrel, state, log)"),
     ('ares.harness.r1delta_compare', ['r1'], 'harness', 'compare original and rebuilt models side by side in R1Delta'),
     ('ares.result', ['r1', 'tfo', 'r2', 'r5'], 'contract', 'convert a harness report into the ARES result contract'),
 ]

@@ -11,7 +11,8 @@ description: Discover ARES tools and upstream runtime, scripting and navigation 
 3. List the local tools: `python -m ares` (or `python -m ares --json`). These are
    standalone readers, comparisons, packaging and in-game harnesses; each has `--help`.
 4. Query the registry with `python scripts/discover-tools.py --game r2 --json`.
-   Use `--capability runtime-source` for runtime implementations and
+   Use `--capability runtime-source` for runtime implementations,
+   `--capability agent-control` for embedded MCP/agent-link clients and
    `--capability navmesh-generation` for Recast candidates. Repeated capability
    flags require all listed capabilities. `--integration local-adapter` selects
    ARES tools; `external-repository` selects upstream sources.
