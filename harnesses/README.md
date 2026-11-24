@@ -15,7 +15,7 @@ current Phase 2 validation scope and remaining acceptance gates.
 | --- | --- | --- | --- |
 | R2: Titanfall 2 / Northstar | `northstar_harness.py` | Loopback HTTP; `ARES.MapHarness` mod polls it | [northstar.md](docs/northstar.md) |
 | R2: Titanfall 2 / Ion | `ion_harness.py` (+ `ares/harness/ion_mcp.py`) | Separate runtime/profile; embedded MCP plus `ARES.MapHarness` | [ion.md](docs/ion.md) (native stock `mp_glitch` verified 24 Nov 2026) |
-| TFO: Titanfall Online | `tfo_harness.py` | Temporary mod with a `_mapspawn` hook; reads `tforevive.log` | [tfo.md](docs/tfo.md) |
+| TFO: Titanfall Online | `tfo_harness.py`, `tfo_sentry_patch.py` | Temporary mod with a `_mapspawn` hook; reads `tforevive.log` | [tfo.md](docs/tfo.md) (maps path + Sentry startup blockers) |
 | R1: Titanfall 1 / R1Delta | `r1_harness.py` | R1Delta's built-in JSON-RPC (MCP) server | [r1delta.md](docs/r1delta.md) |
 | R5: Apex / R5Reloaded SDK 2.3 | `r5_harness.py`, `r5_harnessctl.py`, `r5_harness_smoke.py` | Native protobuf netconsole behind an HTTP controller | [r5reloaded.md](docs/r5reloaded.md) |
 
@@ -60,9 +60,8 @@ Every adapter follows the same lifecycle (see [the contract](../docs/harness-con
 
 1. **Prepare.** Stage the map/mods in an isolated place: a separate Northstar
    profile, an owned Ion runtime/profile copy, a temporary TFO mod or R1Delta
-   addon, or an owned R5 playlist copy.
-   Staged folders carry an owner marker. A folder the harness doesn't own is
-   never overwritten.
+   addon, or an owned R5 playlist copy. Staged folders carry an owner marker.
+   A folder the harness doesn't own is never overwritten.
 2. **Execute.** Launch the game with loopback-only control and a random token.
 3. **Validate.** Run checks, capture views, scan logs for script errors.
 4. **Report.** Write `report.json` (raw events) and, for Northstar and Ion,
@@ -81,6 +80,12 @@ Rules for agents:
   with MCP on 8766.
 - View captures read the screen. The game window must stay visible and
   unobstructed while views are captured.
+- For TFO, `--maps` accepts either the build root or its `maps/` folder; a
+  missing BSP now fails before any game files are touched. If TFO exits before
+  level load, check [the startup blockers](docs/tfo.md#startup-blockers) and
+  `python harnesses/adapters/tfo_sentry_patch.py --game "D:/Games/Titanfall Online" status`
+  before changing a fixture. Use that tool's `run` subcommand for the local,
+  reversible sentry-native 0.7.8 workaround.
 - A harness run is **runtime** verification only for what it checked. Traces
   passing doesn't prove lighting, materials or client rendering.
 

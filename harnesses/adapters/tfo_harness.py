@@ -10,6 +10,10 @@ spawn. Copyright (C) 2026 MRVN-Radiant contributors. GPL-2.0-or-later.
   python harnesses/adapters/tfo_harness.py --game "D:/Games/Titanfall Online" \\
       --maps BUILD_DIR --map mp_name --checks checks.json --output REPORT_DIR
 
+--maps accepts a build root or its maps/ folder; a missing BSP fails before
+any game files are touched. If TFO exits before level load, see
+harnesses/docs/tfo.md#startup-blockers for the sentry.dll workaround.
+
 checks.json: {"traces": [[x, y, z, ex, ey, ez], ...],
               "hulls": [[x,y,z,ex,ey,ez,minx,miny,minz,maxx,maxy,maxz], ...],
               "views": [[x, y, z, pitch, yaw], ...], "view_commands": ["thirdperson"],
@@ -56,6 +60,20 @@ from spawn_checks import validate_spawn, spawn_script, spawn_errors
 from trigger_checks import validate_triggers, trigger_errors, trigger_script
 
 MOD = 'ARES.TF1Harness'
+
+
+def map_source(maps, map_name):
+    """Return the folder holding the compiled BSP, accepting a build root or maps folder.
+
+    Passing a build root whose BSP sits one level deeper installs an empty
+    `mod/maps` directory; TFO then stays on the loading screen with no marker.
+    Resolve both layouts here and fail before touching the game instead.
+    """
+    maps = Path(maps)
+    source = maps / 'maps' if (maps / 'maps' / f'{map_name}.bsp').is_file() else maps
+    if not (source / f'{map_name}.bsp').is_file():
+        raise ValueError(f'missing compiled map: {maps / (map_name + ".bsp")}')
+    return source
 
 
 def target_map_started(text, map_name):
@@ -600,7 +618,8 @@ def main():
         sound_options['sound_files'] = args.sound_file
     if args.repair_hardpoint_sound:
         sound_options['repair_hardpoint_sound'] = True
-    mod = write_mod(args.game, args.maps, checks, capture_token, **sound_options)
+    source = map_source(args.maps, args.map)
+    mod = write_mod(args.game, source, checks, capture_token, **sound_options)
     compatibility_path = mod/'compatibility.json'
     compatibility = json.loads(compatibility_path.read_text(encoding='utf-8')) if compatibility_path.is_file() else None
     try:

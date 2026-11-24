@@ -8,7 +8,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from tfo_harness import SCRIPT, MOD, main, CrashHandlers, game_crashed, target_map_loaded, target_map_started, write_mod, expectation_errors, height_expectations, screenshot_results, view_errors
+from tfo_harness import SCRIPT, MOD, main, CrashHandlers, game_crashed, target_map_loaded, target_map_started, write_mod, expectation_errors, height_expectations, screenshot_results, view_errors, map_source
 
 
 @contextmanager
@@ -41,6 +41,30 @@ def close_process(process):
 
 
 class TfoHarnessTests(unittest.TestCase):
+    def test_map_source_accepts_maps_folder(self):
+        with tempfile.TemporaryDirectory() as folder:
+            maps = Path(folder) / 'maps'
+            maps.mkdir()
+            (maps / 'mp_probe.bsp').write_bytes(b'')
+            self.assertEqual(map_source(maps, 'mp_probe'), maps)
+
+    def test_map_source_accepts_build_root(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            maps = root / 'maps'
+            maps.mkdir()
+            (maps / 'mp_probe.bsp').write_bytes(b'')
+            self.assertEqual(map_source(root, 'mp_probe'), maps)
+
+    def test_map_source_rejects_nested_wrong_map_before_mod_install(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            maps = root / 'maps'
+            maps.mkdir()
+            (maps / 'mp_other.bsp').write_bytes(b'')
+            with self.assertRaisesRegex(ValueError, 'missing compiled map'):
+                map_source(root, 'mp_probe')
+
     def test_missing_entity_sidecar_fails_before_mod_install(self):
         from test_tf1_sidecars import write_bsp
         with tempfile.TemporaryDirectory() as folder:
@@ -104,6 +128,8 @@ class TfoHarnessTests(unittest.TestCase):
             game = root/'game'
             maps = root/'maps'
             maps.mkdir()
+            from test_tf1_sidecars import write_bsp
+            write_bsp(maps/'mp_test.bsp', declaration=b'')
             base = game/'Mods/TFORevive.Core/mod/scripts/vscripts'
             base.mkdir(parents=True)
             (base/'_mapspawn.nut').write_text('// base')

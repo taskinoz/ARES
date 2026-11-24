@@ -89,14 +89,103 @@ information is diagnostic and does not add a motion acceptance gate.
 
 - **Offline spawning.** Offline sessions have no player data, so the hook falls
   back to the stock `pilot_male_fastest` settings file.
-- **Flaky starts.** The first launch often logs `attempt 1: exited before
-  loading the map, retrying`. The retry usually succeeds (`--attempts`,
-  default 3). On a captured crash the harness closes only this launch's
+- **Startup failures are not map evidence.** `exited before loading the map`
+  means TFO never emitted `UICodeCallback_LevelLoadingStarted`. Check the two
+  causes in [Startup blockers](#startup-blockers) before changing a fixture.
+  On a captured crash the harness closes only this launch's
   `crashpad_handler.exe` and `messagebox-win.exe`.
 - **`-dev` crashes** at startup in the NVIDIA driver, so it isn't used.
 - **Screenshots.** The engine's `screenshot` writes nothing and `PrintWindow`
   returns black, so the screen is read. Keep the window visible, and answer any
   Windows Firewall prompt for `TFO.exe` first.
+
+## Startup blockers
+
+Two launch failures look like map failures but are harness/environment issues.
+Both were reproduced under compiler
+`b0a8064905996b3b2790cee1df12fcf59aae212c9fc6b66301d6ca2370098110` with
+one-hash TF1 fixtures. Retain the failing log/report; do not treat a pre-map
+timeout as a compiler or BSP result.
+
+### Wrong `--maps` depth
+
+The adapter copies the `--maps` directory into the temporary mod's `maps/`
+folder. Passing a build root whose BSP lives in `maps/` installs an empty map
+directory. TFO stays on the loading screen about a quarter full, never emits
+`UICodeCallback_LevelLoadingStarted`, and each attempt times out with no
+traces. `r1_harness.py` already accepted both layouts; the TFO adapter now does
+too, and fails with `missing compiled map: ...` before modifying `Mods/` or
+`enabledmods.json`.
+
+```powershell
+python harnesses/adapters/tfo_harness.py --game "D:/Games/Titanfall Online" `
+    --maps .local/respawn/my-build/maps --map mp_name --checks checks.json --output REPORT
+# A build root also works when my-build/maps/mp_name.bsp exists:
+python harnesses/adapters/tfo_harness.py --game "D:/Games/Titanfall Online" `
+    --maps .local/respawn/my-build --map mp_name --checks checks.json --output REPORT
+```
+
+`test_map_source_accepts_maps_folder`, `test_map_source_accepts_build_root` and
+`test_map_source_rejects_nested_wrong_map_before_mod_install` in
+[`test_tfo_harness.py`](../adapters/test_tfo_harness.py) cover this.
+
+### sentry-native 0.7.8 stack overflow
+
+The installed `D:/Games/Titanfall Online/Bin/sentry.dll` is upstream
+sentry-native 0.7.8 (`E`: SHA-256
+`768f9a5f6ea8c8dd88e3b00c0c604fee09f745831b16de54397815623dda2c26`,
+`sentry.native/0.7.8`). Its `DllMain` calls `SetThreadStackGuarantee()` for
+every attaching thread. NVIDIA D3D worker threads already have small stacks;
+the guarantee consumes the remainder and the worker overflows in
+`nvwgf2umx.dll` before map load. Upstream made the auto-guarantee defensive in
+0.8.4 ([issue #1193](https://github.com/getsentry/sentry-native/issues/1193),
+[PR #1196](https://github.com/getsentry/sentry-native/pull/1196)); TFORevive
+tracks it in [bugs#59](https://github.com/TFORevive/bugs/issues/59).
+
+[`tfo_sentry_patch.py`](../adapters/tfo_sentry_patch.py) is a local, reversible
+binary workaround. It verifies the installed hash, writes the original to
+`<ARES>/.local/respawn/tfo-crash-patch/sentry-original-backup.dll`, replaces
+the `DllMain` prologue at file offset `0x7c00` / RVA `0x8800` with
+`b8 01 00 00 00 c3` (`mov eax, 1; ret`), and restores the DLL after `run`.
+Patched SHA-256:
+`f93c0d4be3ee78509f043bedecd3d58eed66492357194e1043434db74f813bf1`.
+
+```powershell
+python harnesses/adapters/tfo_sentry_patch.py --game "D:/Games/Titanfall Online" status
+python harnesses/adapters/tfo_sentry_patch.py --game "D:/Games/Titanfall Online" apply
+python harnesses/adapters/tfo_sentry_patch.py --game "D:/Games/Titanfall Online" revert
+python harnesses/adapters/tfo_sentry_patch.py --game "D:/Games/Titanfall Online" run -- `
+    python harnesses/adapters/tfo_harness.py --game "D:/Games/Titanfall Online" ...
+```
+
+Controlled A/B on the same compiler and replay BSP
+`655c618aafb25241054a860f5f828bb377fec9f8cbce413f62a7223e9cfa5bcc`:
+
+| Sentry DLL | Result |
+| --- | --- |
+| Stock 0.7.8 | Failed before map load, exit `3221225725`. Report `e3b2b51cec94857ce0011fceaf10a62d785bc5544ac6abe84239d1f974e7d13a`, log `4c20deecb06a25fa9a5463faa78285b0eed9e29ea601786c99980f7802dbd63b`. |
+| Locally patched | Loaded and finished, 2 traces, 4 views, 0 errors. Report `1b535532075368b7794775aa1b8fce5a992a27013e1cfbc79d6e68b9edeb5d11`, log `4879d7ca1a8355287ac1aab872edf936909e20b359870dc6852704952b880083`. |
+
+Other observed failures with the wrong `--maps` depth used the patched DLL and
+still failed before level load; report hashes
+`3845235e83d827c0145c72f916ad335685d7531ab95cc63bee48da9417fcf4e5`
+(vertex) and `33cc744835ad5a04be22c082363ee6aecfd31798d9e0fa711c2ad25a2a0d9f9e`
+(props). Corrected patched runs passed with reports
+`1698edb8aac8a68129af934887cf63f20391c33fe6b917162f1b905e95021107` (ARES vertex),
+`870bbaeae6a7359b07a17320783a6f602b2deeeec2f18abd339d9303138dcd7f` (props) and
+`386e86de1073da2cc3f430e0f02842b21c754e71f04491f083d45071b8a84cae` (masks).
+Full provenance:
+`C:/Users/Tristan/GitHub/MRVN-Radiant/.local/respawn/tf1-tfo-closure/.local/respawn/tfo-crash-patch/report.json`
+and `.../one-hash-native-replay/results.json`.
+
+**Limits (`B`/`E`/`N`).** This is a third-party binary patch, not an upstream
+TFORevive fix or a substitute for sentry-native 0.8.4+. It disables per-thread
+stack guarantees, so crash reporting on tiny-stack threads is not guaranteed.
+One driver, one GPU and a small number of sessions were tested. It does not
+cover physics launch breadth, `sprp v12` package loads, image comparisons or
+release deployment. The installed DLL is restored to stock after each `run`;
+verify with `status` before and after a batch. Synthetic patch tests live in
+[`test_tfo_sentry_patch.py`](../adapters/test_tfo_sentry_patch.py).
 
 ## View capture validation
 
