@@ -56,6 +56,7 @@ from spawn_checks import validate_spawn, spawn_script, spawn_errors
 from trigger_checks import validate_triggers, trigger_errors, trigger_script
 
 MOD = 'ARES.TF1Harness'
+STACK_OVERFLOW = 0xC00000FD
 
 
 def target_map_started(text, map_name):
@@ -69,6 +70,14 @@ def target_map_loaded(text, map_name):
 
 def run_stopped(text):
     return any(marker in text for marker in ('[ARES] DONE', 'A CRASH HAS BEEN CAPTURED', 'SCRIPT ERROR'))
+
+
+def retry_launch(text, map_name, exit_code):
+    """Retry launches that died before the map: TFO's startup stack overflow logs a
+    UI SCRIPT ERROR too, so a script error only ends the attempts after any other exit."""
+    if target_map_started(text, map_name):
+        return False
+    return exit_code == STACK_OVERFLOW or 'SCRIPT ERROR' not in text
 
 
 def game_crashed(text, exit_code):
@@ -664,7 +673,7 @@ def main():
                 finally:
                     handlers.capture()
                     handlers.close(crashed)
-            if target_map_started(text, args.map) or 'SCRIPT ERROR' in text:
+            if not retry_launch(text, args.map, exit_code):
                 break
             print(f'attempt {attempt + 1}: exited before loading the map, retrying', flush=True)
     finally:
@@ -690,7 +699,8 @@ def main():
         errors.append(f'TFO exited abnormally with code {exit_code}')
     report = {'map': args.map, 'compatibility': compatibility, 'events': events, 'errors': errors, 'screenshots': [s.name for s in new_shots],
               'capture_methods': capture_methods, 'frames': frames['frames'], 'frame_warnings': frames['warnings'],
-              'loaded': target_map_loaded(text, args.map), 'finished': '[ARES] DONE' in text}
+              'loaded': target_map_loaded(text, args.map), 'finished': '[ARES] DONE' in text,
+              'drop_sequential': bool(checks.get('drop_sequential', False))}
     (args.output/'report.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
     return 0 if report['loaded'] and report['finished'] and not report['errors'] else 1

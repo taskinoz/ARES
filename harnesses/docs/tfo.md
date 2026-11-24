@@ -85,6 +85,32 @@ motion between samples. Timestamps use the adapter's clock; these finite
 differences are not instantaneous engine velocities. Without `--motion`, this
 information is diagnostic and does not add a motion acceptance gate.
 
+### Repeat launches
+
+TFO physics can change between launches of the same BSP. In MRVN-Radiant's
+crate fixtures (2026-11-20) each launch was either all good, every crate flat
+on the floor, or all bad, every crate sunk on first contact and stopped tilted
+10 to 58 degrees or below the floor. A single launch cannot tell a fix from a
+good launch. `tfo_sessions.py` runs the harness several times and labels each
+launch:
+
+```powershell
+python harnesses/adapters/tfo_sessions.py --launches 6 --output RUNS -- --game "D:/Games/Titanfall Online" --maps BUILD_DIR --map mp_name --checks checks.json
+python harnesses/adapters/tfo_sessions.py --reports RUNS/launch01 RUNS/launch02 --output RUNS
+```
+
+Each launch goes to `RUNS/launchNN`; `RUNS/sessions.json` holds the labels, each
+drop's tilt and z, and the reasons. A launch is `good` when every drop rests
+within `--max-tilt` degrees (default 5) of lying on a face, side or end, is
+still, and meets any `--floor INDEX Z` (bounds bottom within one unit). It is
+`bad` otherwise, and `failed` when the map did not load, the run did not finish
+or there were no drops. Simultaneous drops can pile up and lean on each other,
+so a tilted drop whose bounding sphere meets another's (or lies within
+`--contact`) makes the launch `unclear` rather than `bad`; one retail Angel City
+launch is `unclear` for this reason. Prefer `drop_sequential`, which
+`report.json` now records. Tilt assumes box-like drop models. The command exits
+0 only when every launch is good.
+
 ## Known behaviour
 
 - **Offline spawning.** Offline sessions have no player data, so the hook falls

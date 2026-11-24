@@ -23,8 +23,9 @@ upstream:
   license: GPL-2.0-or-later
 verification:
   status: partial
-  last_checked: "2026-11-18"
+  last_checked: "2026-11-21"
   notes:
+    - "tfo_sessions.py labels repeated launches good, bad, unclear or failed from drop rest tilt, speed and optional floors. Against saved MRVN-Radiant crate reports it matches the hand labels of 11 compiled-fixture launches (6 good, 5 bad); two retail Angel City launches are good and one is unclear (piled simultaneous drops). A live --launches 3 run on 2026-11-21 labelled one bad, one good and one failed (TFO startup stack overflow, 0xC00000FD); tfo_harness.py now retries that crash, which it had skipped because the crash also logs a UI SCRIPT ERROR."
     - "Two grunt round trips (48 movement samples) and one native atlas goal/return pair (40 samples) pass in both runtimes. Atlas checks native type/bounds and HULL_TITAN connectivity; final arrival facing unspecified. The initial TFO fixed-facing return hold fails and is retained. Piloting, combat, other hulls/maps and full Phase 2 remain open."
     - "Scoped MRVN native AIN export/offline CRC packaging passes original and changed-pillar/node routes in both runtimes. Owned R1/TFO native fields agree with CRC 1916430116. Explicit build_navigation launch flag; no integrity checks disabled. Other hulls/formats, general AI and full release acceptance remain open."
     - "One original eight-node grunt obstacle route reaches/holds the goal in both runtimes with a generated AIN. Shared navigation_probe checks living indexed samples, floor/obstacle poses and arrival. R1 matching graph staging and bounded v54 framing are tested; native CRC/export automation, other hulls and general AI remain open. 151 adapter tests pass."
@@ -41,5 +42,7 @@ inspection:
   evidence:
     - harnesses/adapters/tfo_harness.py
     - harnesses/adapters/test_tfo_harness.py
+    - harnesses/adapters/tfo_sessions.py
+    - harnesses/adapters/test_tfo_sessions.py
 documentation:
   - https://github.com/taskinoz/ARES/blob/main/harnesses/docs/tfo.md
