@@ -11,6 +11,11 @@ from pathlib import Path
 import ion_harness as ih
 
 
+def temp_root(temp):
+    """Canonical temp root; Windows CI exposes short 8.3 names from tempfile."""
+    return Path(temp.name).resolve()
+
+
 def write_mod(root, name, version='1.31.15'):
     root.mkdir(parents=True, exist_ok=True)
     (root / 'mod.json').write_text(json.dumps({'Name': name, 'Version': version}))
@@ -47,7 +52,7 @@ class SourceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = temp_root(self.temp)
         self.game, self.ion = fixtures(self.root)
 
     def test_rejects_non_game_and_nested_release(self):
@@ -69,7 +74,7 @@ class StagingTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = temp_root(self.temp)
         self.game, self.ion = fixtures(self.root)
         self.runtime = self.root / 'Titanfall2-Ion'
 
@@ -129,7 +134,7 @@ class IonDllTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = temp_root(self.temp)
         self.game, self.ion = fixtures(self.root)
         self.runtime = ih.prepare_runtime(self.game, self.ion, self.root / 'Titanfall2-Ion')
 
@@ -166,7 +171,7 @@ class MainTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = temp_root(self.temp)
         self.game, self.ion = fixtures(self.root)
 
     def test_profile_cannot_be_the_main_northstar_profile(self):
