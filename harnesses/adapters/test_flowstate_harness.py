@@ -100,6 +100,14 @@ class ScriptTests(unittest.TestCase):
         self.assertIn('global function ClientCodeCallback_ARES_Harness_ModInit', script)
         self.assertNotIn('cl_drawhud', fh.mod_script([[0, 0, 0, 0, 0]], 'ares_tok', hide_hud=False))
 
+    def test_cubemap_balls_follow_the_camera(self):
+        script = fh.mod_script([[1, 2, 3, 10, 90]], 'ares_tok', balls=True)
+        self.assertIn('CreateClientSidePropDynamic( <0, 0, 0>, <0, 0, 0>, $"mdl/dev/envballs.rmdl" )', script)
+        self.assertIn('balls.SetOrigin( base + origin )', script)
+        self.assertIn('balls.SetAngles( angles[i] )', script)
+        self.assertIn('balls.Destroy()', script)
+        self.assertNotIn('envballs', fh.mod_script([[1, 2, 3, 10, 90]], 'ares_tok'))
+
     def test_rejects_bad_views_and_tokens(self):
         for views in ([], [[1, 2, 3]], [[1, 2, 3, 4, 'x']], [[1, 2, 3, 4, True]], 'x'):
             with self.assertRaises(ValueError):

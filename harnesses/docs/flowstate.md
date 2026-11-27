@@ -43,6 +43,15 @@ python harnesses/adapters/flowstate_harness.py --game "C:/Games/Flowstate" `
   `player` field (from the server) gives the spawn pose for absolute views.
 - `server_commands` run on the dedicated server over RCON after the map loads
   (one command each; no `;` or line breaks).
+- `cubemap_balls: true` places `mdl/dev/envballs.rmdl` (the `weapon_cubemap`
+  view model: spheres plus grey and colour charts in S30) as a client-side prop
+  in front of the camera at every view, as Flowstate's own art viewer does, so
+  the frames show what the map's cubemaps reflect. Giving `weapon_cubemap`
+  itself doesn't work here: the S30 weapon HUD looks the weapon up as survival
+  loot (`SURVIVAL_Loot_GetLootDataByRef`), the lookup fails, and the client
+  disconnects with "There was a problem processing game logic". Server scripts
+  over RCON also need typed locals (`entity p = ...`); `local p` fails with
+  "Cannot call ... without compile-time type checking".
 - `--prepare-only` builds the copy and the mod without launching. `--keep-open`
   leaves the game running (it then skips the Saved Games restore).
 

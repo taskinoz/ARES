@@ -16,6 +16,10 @@ checks.json uses the TFO harness schema (harnesses/adapters/tfo_harness.py):
   views [[x,y,z,pitch,yaw]], drops [[x,y,z]], drop_models, drop_wait,
   drop_samples, expect {trace_z, hull_z, drop_z}. Events and report.json match
   that harness, so results from both engines compare line for line.
+  cubemap_balls (R1Delta only): true places the stock dev model
+  models/dev/envballs.mdl (chrome, metal and glass spheres) at the eye for every
+  view, so each capture shows what the map's cubemaps reflect there. TF1 has no
+  weapon_cubemap; the model's spheres sit about 11 units in front of its origin.
 """
 import argparse
 import hashlib
@@ -49,6 +53,7 @@ ADDON_PREFIX = 'ARES.TF1Harness.'
 OWNER = '.ares-harness-owner.json'
 # Barrels spawn as physics props in R1Delta; crate.mdl and projectile_rocket.mdl do not.
 DEFAULT_MODEL = 'models/containers/barrel.mdl'
+BALLS_MODEL = 'models/dev/envballs.mdl'  # stock TF1 cubemap test spheres (mp_common)
 ADDON_LIST = re.compile(r'\s*"AddonList"\s*\{[^{}]*\}\s*', re.I | re.S)
 MAP_NAME = re.compile(r'[A-Za-z0-9_]+')
 MODEL_NAME = re.compile(r'models/[A-Za-z0-9_/-]+\.mdl')
@@ -110,8 +115,13 @@ def validate_checks(checks):
     sequential = checks.get('drop_sequential', False)
     if type(sequential) is not bool:
         raise ValueError('drop_sequential must be a boolean')
+    balls = checks.get('cubemap_balls', False)
+    if type(balls) is not bool:
+        raise ValueError('cubemap_balls must be a boolean')
+    if balls and not result['views']:
+        raise ValueError('cubemap_balls needs views')
     result.update(drop_models=models, drop_wait=float(wait), drop_samples=checks.get('drop_samples', False) is True,
-                  drop_sequential=sequential, expect=checks.get('expect', {}))
+                  drop_sequential=sequential, expect=checks.get('expect', {}), cubemap_balls=balls)
     height_expectations(result['expect'])  # reject malformed expectations before launching
     return result
 
@@ -561,12 +571,19 @@ def run_checks(control, checks, pid, output, events, screenshots, game=None, cap
     # Per-frame SetOrigin alone can drift several units between server ticks.
     control.console('sv_cheats 1')
     control.console('noclip')
+    if checks.get('cubemap_balls'):
+        # The rifle and HUD would cover the spheres.
+        control.console('r_drawviewmodel 0')
+        control.console('cl_drawhud 0')
     try:
         for i, v in enumerate(checks['views']):
             token = uuid.uuid4().hex
             try:
                 control.squirrel(held_view_script(v, token))
                 time.sleep(2)
+                if checks.get('cubemap_balls'):
+                    events += control.squirrel(balls_script(i, v))
+                    time.sleep(0.5)
                 events += control.squirrel(f'local p = GetPlayerArray()[0]; printl( "[ARES] VIEW {i} origin=" + '
                                            'p.GetOrigin() + " eye=" + p.EyePosition() + " alive=" + IsAlive( p ) )')
                 path = output / f'view_{i}.png'
@@ -589,7 +606,27 @@ def run_checks(control, checks, pid, output, events, screenshots, game=None, cap
                 control.squirrel(f'if ( "ARES_ViewToken" in getroottable() && ::ARES_ViewToken == "{token}" ) '
                                  '::ARES_ViewToken = ""')
     finally:
+        if checks.get('cubemap_balls'):
+            control.squirrel('if ( "ARES_Balls" in getroottable() && IsValid( ::ARES_Balls ) ) ::ARES_Balls.Destroy()')
+            control.console('r_drawviewmodel 1')
+            control.console('cl_drawhud 1')
         control.console('noclip')
+
+
+def balls_script(index, view):
+    """Server script placing the envballs prop at the held player's eye, facing the view."""
+    # One statement per line: R1Delta's compiler wants ";" or a line break
+    # before a block's closing brace after a newslot (<-).
+    return '\n'.join([
+        'if ( !( "ARES_Balls" in getroottable() ) || !IsValid( ::ARES_Balls ) ) {',
+        f'local b = CreateEntity( "prop_dynamic" ); b.kv.model = "{BALLS_MODEL}"; b.kv.solid = 0',
+        'DispatchSpawn( b, false )',
+        '::ARES_Balls <- b',
+        '}',
+        'local p = GetPlayerArray()[0]',
+        '::ARES_Balls.SetOrigin( p.EyePosition() )',
+        f'::ARES_Balls.SetAngles( Vector( {float(view[3])}, {float(view[4])}, 0 ) )',
+        f'printl( "[ARES] BALLS {index} valid=" + IsValid( ::ARES_Balls ) + " origin=" + ::ARES_Balls.GetOrigin() )'])
 
 
 def free_port():
@@ -727,8 +764,9 @@ def main(argv=None):
         p.error('--timeout must be 30..3600 and --attempts at least 1')
     checks = validate_checks(json.loads(args.checks.read_text()) if args.checks else {})
     args.output.mkdir(parents=True, exist_ok=True)
+    precache = (checks['drop_models'] if checks['drops'] else []) + ([BALLS_MODEL] if checks['cubemap_balls'] else [])
     session = prepare(find_app(args.r1delta), find_game(args.game), args.maps, args.map,
-                      checks['drop_models'] if checks['drops'] else None, model_source=args.model_files,
+                      precache if (checks['drops'] or checks['cubemap_balls']) else None, model_source=args.model_files,
                       material_source=args.material_files)
     try:
         for number in range(1, args.attempts + 1):

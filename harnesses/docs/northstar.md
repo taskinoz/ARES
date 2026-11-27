@@ -73,6 +73,7 @@ these keys:
 | `thirdperson` | `true` treats views as the player's feet position, in third person |
 | `engine_screenshots` | `true` (default) captures views with the engine's `screenshot` command; the desktop window grab is a fallback |
 | `hide_hud` | `true` (default) sets `cl_drawhud 0` during views, which also removes the pre-match loadout overlay from engine captures |
+| `cubemap_weapon` | `true` gives the player the dev weapon `weapon_cubemap`, whose view model is a set of chrome and rough spheres, and captures the views in first person, so each frame shows what the map's cubemaps reflect. Views are the player's feet position, as with `thirdperson` (the two can't be combined); with `hide_hud` the RUI HUD is also turned off (`rui_drawEnable 0`). Event: `WEAPON weapon_cubemap active=True` |
 
 ### Screenshots
 

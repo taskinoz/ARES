@@ -36,6 +36,11 @@ reflected light.
   python tools/cubemaps.py inspect MAP.bsp
   python tools/cubemaps.py plan MAP.bsp --output cubemaps.json [--between 3]
   python tools/cubemaps.py write MAP.bsp cubemaps.json --texconv texconv.exe [--output OUT.bsp]
+  python tools/cubemaps.py faces MAP.bsp --output DIR [--mip 2] [--raw]
+
+`faces` decodes the compiled cubemaps.hdr.vtf of a Titanfall 2 or Apex map
+(retail, texconv or MRVN-Radiant output) to PNG strips, faces +X -X +Y -Y +Z -Z.
+To see them in game, use the Northstar harness checks key `cubemap_weapon`.
 """
 import argparse
 import io
@@ -234,6 +239,98 @@ def inspect(path):
                 pakfile_files=files, meshes_per_cubemap={str(k): v for k, v in sorted(counts.items())})
 
 
+def pakfile_vtf(path):
+    """(name, bytes) of the cubemaps.hdr.vtf in a BSP's PAKFILE, embedded or in a .0028.bsp_lump file."""
+    path = Path(path)
+    with path.open('rb') as stream:
+        head = stream.read(16 + 128 * 16)
+        if head[:4] != b'rBSP':
+            raise ValueError(f'{path}: not an rBSP file')
+        offset, length = struct.unpack_from('<ii', head, 16 + 0x28 * 16)
+        stream.seek(offset)
+        data = stream.read(length)
+    external = path.with_name(path.name + '.0028.bsp_lump')
+    if external.is_file():
+        data = external.read_bytes()
+    if not data:
+        raise ValueError(f'{path}: the PAKFILE is empty (no compiled cubemaps)')
+    pak = zipfile.ZipFile(io.BytesIO(data))
+    names = [n for n in pak.namelist() if n.lower().endswith('cubemaps.hdr.vtf')]
+    if not names:
+        raise ValueError(f'{path}: the PAKFILE has no cubemaps.hdr.vtf')
+    return names[0], pak.read(names[0])
+
+
+def decode_faces(data, mip=0):
+    """[cubemap][face] RGB images (faces +X, -X, +Y, -Y, +Z, -Z) of one mip of a BC6H cubemap VTF.
+
+    Pillow (10.1 or later) decodes every BC6H mode, clamped to 8 bits, so this
+    reads retail, texconv-written and MRVN-Radiant cubemaps alike."""
+    from PIL import Image  # optional dependency, only for this command
+    if data[:4] != b'VTF\0':
+        raise ValueError('not a VTF file')
+    width, height, _, frames = struct.unpack_from('<HHIH', data, 16)
+    fmt, mips = struct.unpack_from('<iB', data, 52)
+    if fmt != 66 or width != height:
+        raise ValueError(f'expected a square BC6H (format 66) cubemap, got format {fmt} {width}x{height}')
+    if not 0 <= mip < mips:
+        raise ValueError(f'mip {mip} is outside 0-{mips - 1}')
+    offset = None
+    for r in range(struct.unpack_from('<I', data, 68)[0]):
+        tag, value = data[80 + 8 * r:84 + 8 * r], struct.unpack_from('<I', data, 84 + 8 * r)[0]
+        if tag[:1] == b'0':
+            offset = value
+    if offset is None:
+        raise ValueError('VTF has no image resource')
+
+    def face_bytes(m):
+        return max(1, (max(width >> m, 1) + 3) // 4) ** 2 * 16
+
+    for m in range(mips - 1, mip, -1):  # mips are stored smallest first
+        offset += frames * 6 * face_bytes(m)
+    size, n = max(width >> mip, 1), face_bytes(mip)
+    blocks = max(size, 4)
+    dds = (struct.pack('<4s7I44x2I4s5I', b'DDS ', 124, 0x1007, blocks, blocks, n, 0, 1, 32, 4, b'DX10', 0, 0, 0, 0, 0)
+           + struct.pack('<5I', 0x1000, 0, 0, 0, 0) + struct.pack('<5I', 95, 3, 0, 1, 0))  # BC6H_UF16, 2D
+    cubes = []
+    for frame in range(frames):
+        cube = []
+        for face in range(6):
+            start = offset + (frame * 6 + face) * n
+            if start + n > len(data):
+                raise ValueError('VTF image data is shorter than its header says')
+            image = Image.open(io.BytesIO(dds + data[start:start + n]))
+            image.load()
+            cube.append(image.convert('RGB').crop((0, 0, size, size)))
+        cubes.append(cube)
+    return cubes
+
+
+def write_faces(path, output, mip=0, normalise=True):
+    """Write one PNG strip per cubemap (six faces side by side) and return statistics."""
+    from PIL import Image
+    name, data = pakfile_vtf(path)
+    cubes = decode_faces(data, mip)
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=True)
+    report = {'vtf': name, 'mip': mip, 'cubemaps': []}
+    for i, cube in enumerate(cubes):
+        size = cube[0].width
+        strip = Image.new('RGB', (size * 6, size))
+        for f, face in enumerate(cube):
+            strip.paste(face, (f * size, 0))
+        values = list(strip.getdata())
+        peak = max(max(p) for p in values)
+        mean = sum(sum(p) for p in values) / (3 * len(values))
+        if normalise and 0 < peak < 255:
+            # Dark cubemaps decode to a few grey levels; stretch them for viewing.
+            strip = strip.point(lambda v, k=255 / peak: min(255, round(v * k)))
+        target = output / f'cubemap{i}.png'
+        strip.save(target)
+        report['cubemaps'].append({'png': str(target), 'mean': round(mean, 2), 'max': peak})
+    return report
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='command', required=True)
@@ -248,9 +345,16 @@ def main(argv=None):
     w.add_argument('config', help='plan output with each origin\'s "shots" filled in by the capture recipe')
     w.add_argument('--texconv', default=os.environ.get('ARES_TEXCONV'))
     w.add_argument('--output', help='write here instead of replacing the input')
+    fc = sub.add_parser('faces', help='decode the compiled cubemaps to PNG strips (needs Pillow 10.1+)')
+    fc.add_argument('bsp')
+    fc.add_argument('--output', required=True, help='folder for cubemap<N>.png')
+    fc.add_argument('--mip', type=int, default=2, help='0 is 256x256; the default 2 is 64x64')
+    fc.add_argument('--raw', action='store_true', help='do not stretch dark cubemaps for viewing')
     a = p.parse_args(argv)
     if a.command == 'inspect':
         print(json.dumps(inspect(a.bsp), indent=2))
+    elif a.command == 'faces':
+        print(json.dumps(write_faces(a.bsp, a.output, a.mip, not a.raw), indent=2))
     elif a.command == 'plan':
         Path(a.output).write_text(json.dumps(plan(a.bsp, a.between), indent=2) + '\n')
         print(Path(a.output).read_text())

@@ -29,6 +29,9 @@ checks.json (every key optional):
    "thirdperson": false,               true: views are the player's feet position
    "engine_screenshots": true,         false: desktop window grabs only
    "hide_hud": true,                   cl_drawhud 0 while capturing views
+   "cubemap_weapon": false,            true: hold weapon_cubemap (chrome spheres) and
+                                       capture views in first person; views are
+                                       the player's feet position
    "console": ["sv_cheats 1"],         UI console commands before the checks
    "expect": {"trace_z": [[index, min, max]], "hull_z": [[index, min, max]]}}
 
@@ -72,7 +75,7 @@ MODE_NAME = re.compile(r'[A-Za-z0-9_]+')
 PROFILE_NAME = re.compile(r'[A-Za-z0-9_.-]+')
 SCRIPT_ERRORS = ('SCRIPT ERROR', 'COMPILE ERROR', 'SCRIPT COMPILE ERROR')
 CHECK_KEYS = {'settle', 'traces', 'hulls', 'spawn_probe', 'mode_check', 'views', 'thirdperson', 'console', 'expect',
-              'engine_screenshots', 'hide_hud'}
+              'engine_screenshots', 'hide_hud', 'cubemap_weapon'}
 MAX_BODY = 65536
 
 
@@ -240,9 +243,11 @@ def validate_checks(checks):
     if not isinstance(console, list) or any(
             not isinstance(c, str) or not re.fullmatch(r'[A-Za-z0-9_ .+-]{1,96}', c) for c in console):
         raise ValueError('console must be short console commands')
-    for key in ('mode_check', 'thirdperson', 'engine_screenshots', 'hide_hud'):
+    for key in ('mode_check', 'thirdperson', 'engine_screenshots', 'hide_hud', 'cubemap_weapon'):
         if type(checks.get(key, False)) is not bool:
             raise ValueError(f'{key} must be true or false')
+    if checks.get('thirdperson') and checks.get('cubemap_weapon'):
+        raise ValueError('cubemap_weapon needs first-person views; drop thirdperson')
     expect = checks.get('expect', {})
     if isinstance(expect, dict) and 'drop_z' in expect:
         raise ValueError('drop_z is not supported by the Northstar harness')
@@ -576,13 +581,23 @@ def run_checks(session, checks, mode, report, timeout=300):
         time.sleep(1)
         session.run('ui', 'console', command='thirdperson')
         time.sleep(1)
+    held = bool(views and checks.get('cubemap_weapon'))
+    if held:
+        # The cubemap weapon's view model is a set of chrome and rough spheres
+        # that reflect the cubemap the engine picked for the camera position.
+        data = session.run('server', 'give_weapon', weapon='weapon_cubemap')['data']
+        events.append(f'WEAPON weapon_cubemap active={data.get("weapon") == "weapon_cubemap"}')
+        checks_out.append({'name': 'weapon_cubemap held', 'passed': data.get('weapon') == 'weapon_cubemap'})
+        time.sleep(1.5)
     engine = checks.get('engine_screenshots', True)
     if views and checks.get('hide_hud', True):
         session.run('ui', 'console', command='cl_drawhud 0')
+        if held:  # first-person views show the RUI HUD, which cl_drawhud leaves on
+            session.run('ui', 'console', command='rui_drawEnable 0')
     for i, v in enumerate(views):
         session.run('ui', 'clear_ui')
         pose = dict(px=float(v[0]), py=float(v[1]), pz=float(v[2]), pitch=float(v[3]), yaw=float(v[4]), roll=0.0)
-        if checks.get('thirdperson'):
+        if checks.get('thirdperson') or held:
             session.run('server', 'player', freeze=True, **pose)
             time.sleep(2.5)
         else:
@@ -597,6 +612,8 @@ def run_checks(session, checks, mode, report, timeout=300):
         checks_out.append({'name': f'view[{i}] captured', 'passed': bool(method)})
     if views and checks.get('hide_hud', True):
         session.run('ui', 'console', command='cl_drawhud 1')
+        if held:
+            session.run('ui', 'console', command='rui_drawEnable 1')
     frames = review_frames([session.output / name for name in report['screenshots']])
     report['frames'], report['frame_warnings'] = frames['frames'], frames['warnings']
     report['errors'] += frames['errors']

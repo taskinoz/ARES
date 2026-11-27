@@ -123,6 +123,21 @@ can otherwise leave a map on its loading screen. This is a packaging preflight,
 not entity-syntax or gameplay validation. Other BSP versions and external
 partition-table overrides are outside this check.
 
+## Cubemap spheres
+
+TF1 has no `weapon_cubemap`, but `mp_common` ships the model it would use:
+`models/dev/envballs.mdl` (with `.vvd`, `.dx11.vtx`, `.vvc`) and its
+`materials/models/dev/envball_1`–`6` (`$envmap env_cubemap`). With
+`"cubemap_balls": true` (views required) the harness precaches the model at
+level init, then at every view places it as a non-solid `prop_dynamic` at the
+held player's eye, facing the view; the spheres sit about 11 units in front of
+the model origin, so they fill the frame like a view model. The rifle and HUD
+are hidden during the views (`r_drawviewmodel 0`, `cl_drawhud 0`) and restored
+afterwards. Each view logs `BALLS <i> valid=true origin=...`.
+
+Checked 27 November 2026 in R1Delta 3.0.5: on retail `mp_angel_city` all six
+spheres show the street; on an MRVN-Radiant map they show that map's compiled
+cubemaps.
 
 ## Authored trigger output probes
 

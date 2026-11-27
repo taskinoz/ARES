@@ -125,11 +125,14 @@ class CheckTests(unittest.TestCase):
                   'views': [[0, 0, 64, 10, 90]], 'spawn_probe': [[0, 0, 0]], 'mode_check': True,
                   'console': ['sv_cheats 1'], 'expect': {'trace_z': [[0, -1, 1]]}}
         self.assertIs(nh.validate_checks(checks), checks)
+        cubemap = {'views': [[0, 0, 0, 10, 90]], 'cubemap_weapon': True}
+        self.assertIs(nh.validate_checks(cubemap), cubemap)
 
     def test_invalid_checks(self):
         for checks in ({'trace': []}, {'traces': [[0, 0, 0]]}, {'hulls': [[0] * 6 + [16, 0, 0, -16, 0, 0]]},
                        {'console': ['quit; rm']}, {'settle': -1}, {'mode_check': 1},
-                       {'expect': {'drop_z': [[0, 0, 1]]}}, {'traces': [[float('nan')] * 6]}):
+                       {'expect': {'drop_z': [[0, 0, 1]]}}, {'traces': [[float('nan')] * 6]},
+                       {'cubemap_weapon': 'yes'}, {'cubemap_weapon': True, 'thirdperson': True}):
             with self.subTest(checks=checks), self.assertRaises(ValueError):
                 nh.validate_checks(checks)
 

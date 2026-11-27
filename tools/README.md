@@ -91,7 +91,7 @@ Background: [the research note](../docs/research/tf2-map-rendering-and-visibilit
 | `weld_tricoll.py` | Stores each triangle-collision position once per header. A converted map went from 19.96M to 5.76M positions; retail is about 0.65 per triangle |
 | `weld_shadow_meshes.py` | Stores each sun-shadow mesh position once, saving 24-28 MB on converted arenas |
 | `csm_props.py` | Inspects the cascaded-shadow object tree, or lists static props in it so they cast real-time sun shadows (bounds from `.mdl` files) |
-| `cubemaps.py` | Plans cubemap origins, inspects a map's cubemaps, and writes in-game-captured faces as BC6H VTF, pakfile and per-mesh assignments (Pillow and `texconv`) |
+| `cubemaps.py` | Plans cubemap origins, inspects a map's cubemaps, and writes in-game-captured faces as BC6H VTF, pakfile and per-mesh assignments (Pillow and `texconv`). `faces` decodes any map's compiled `cubemaps.hdr.vtf` (TF2 or Apex, embedded or `.0028.bsp_lump`) to one PNG strip per cubemap (Pillow) |
 | `cells_all_visible.py` | Finds visibility cells without portals, which hide entities outside the camera's cell, and sends every point to the all-visible cell |
 
 Skills: `optimise-tf2-map`, `add-tf2-prop-shadows`, `add-tf2-cubemaps`.

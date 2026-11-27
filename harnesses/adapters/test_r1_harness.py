@@ -161,6 +161,19 @@ class R1HarnessTests(unittest.TestCase):
             self.prepare()
         self.assertFalse((self.r1 / 'addons').exists())
 
+    def test_cubemap_balls(self):
+        checks = r1_harness.validate_checks({'views': [[0, 0, 0, 10, 90]], 'cubemap_balls': True})
+        self.assertTrue(checks['cubemap_balls'])
+        self.assertFalse(r1_harness.validate_checks({})['cubemap_balls'])
+        for bad in ({'cubemap_balls': True}, {'views': [[0, 0, 0, 0, 0]], 'cubemap_balls': 1}):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                r1_harness.validate_checks(bad)
+        script = r1_harness.balls_script(2, [0, 0, 0, 15, 90])
+        self.assertIn('b.kv.model = "models/dev/envballs.mdl"', script)
+        self.assertIn('SetAngles( Vector( 15.0, 90.0, 0 ) )', script)
+        self.assertIn('"[ARES] BALLS 2 valid="', script)
+        self.assertIn('::ARES_Balls <- b\n}', script)  # newslot needs a line break before the brace
+
     def test_check_validation_matches_tfo_schema(self):
         checks = r1_harness.validate_checks({
             'traces': [[0, 0, 10, 0, 0, 0]], 'hulls': [[0, 0, 10, 0, 0, 0, -8, -8, 0, 8, 8, 72]],
