@@ -321,6 +321,29 @@ void function MTH_Execute( string raw )
             vector pos = p.GetOrigin()
             answer.data <- { team = p.GetTeam(), spawnTeam = spawn.GetTeam(), classname = spawn.GetClassName(), origin = [ pos.x, pos.y, pos.z ] }
         }
+        else if ( op == "give_weapon" )
+        {
+            // Dev weapons such as weapon_cubemap (chrome reflection spheres as
+            // the view model) for checking a map's cubemaps in first person.
+            array<entity> players = GetPlayerArray()
+            if ( players.len() != 1 )
+                throw "Giving a weapon requires exactly one local player"
+            entity p = players[0]
+            string weapon = string( job.weapon )
+            if ( p.GetTeam() != TEAM_IMC && p.GetTeam() != TEAM_MILITIA )
+                SetTeam( p, TEAM_IMC )
+            if ( !IsAlive( p ) )
+                p.RespawnPlayer( null )
+            if ( p.GetActiveWeapon() == null || p.GetActiveWeapon().GetWeaponClassName() != weapon )
+            {
+                foreach ( entity w in p.GetMainWeapons() )
+                    p.TakeWeaponNow( w.GetWeaponClassName() )
+                p.GiveWeapon( weapon )
+                p.SetActiveWeaponByName( weapon )
+            }
+            entity active = p.GetActiveWeapon()
+            answer.data <- { weapon = active == null ? "" : active.GetWeaponClassName() }
+        }
         else if ( op == "player" )
         {
             array<entity> players = GetPlayerArray()

@@ -39,8 +39,15 @@ Work on a copy of the map mod.
    `python tools/cubemaps.py write MOD/mod/maps/MAP.bsp reports/cubemaps/cubemaps.json --texconv texconv.exe`.
    It adds lumps 0x28 and 0x2A, the mesh cubemap bytes and the material sort
    values.
-5. **Verify in game.**
-   - Use the `run-harness` views on metal or wet surfaces, before and after.
+5. **Verify.**
+   - Offline: `python tools/cubemaps.py faces MOD/mod/maps/MAP.bsp --output reports/faces`
+     writes one PNG strip per cubemap (+X -X +Y -Y +Z -Z). Each should show the
+     area around its origin, with the sky on +Z.
+   - In game: run the Northstar harness with `"cubemap_weapon": true` and
+     views at the cubemap origins (feet positions). The chrome sphere of
+     `weapon_cubemap` shows the cubemap the engine picked there. Compare with
+     the map before the write, where it shows the engine's fallback.
+   - Also use the `run-harness` views on metal or wet surfaces, before and after.
      The effect is subtle: shaded surfaces pick up reflected light.
    - Then run `accept-northstar-map`.
 
