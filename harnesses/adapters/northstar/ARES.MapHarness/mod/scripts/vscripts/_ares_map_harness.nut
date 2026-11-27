@@ -165,6 +165,41 @@ vector function MTH_Position( table job )
     return < expect float( job.px ), expect float( job.py ), expect float( job.pz ) >
 }
 
+#if SERVER
+int function MTH_Mask( table job )
+{
+    // Brush-only stays the default: it ignores props, so prop collision needs "solid" or "playersolid".
+    string name = "mask" in job ? expect string( job.mask ) : "brushonly"
+    switch ( name )
+    {
+        case "brushonly": return TRACE_MASK_SOLID_BRUSHONLY
+        case "solid": return TRACE_MASK_SOLID
+        case "playersolid": return TRACE_MASK_PLAYERSOLID
+        case "npcsolid": return TRACE_MASK_NPCSOLID
+        case "shot": return TRACE_MASK_SHOT
+        case "water": return TRACE_MASK_WATER
+    }
+    throw "Unknown trace mask " + name
+    unreachable
+}
+
+table function MTH_TraceTable( TraceResults r )
+{
+    table t = {}
+    t.fraction <- r.fraction
+    t.startSolid <- r.startSolid
+    t.end <- [ r.endPos.x, r.endPos.y, r.endPos.z ]
+    t.normal <- [ r.surfaceNormal.x, r.surfaceNormal.y, r.surfaceNormal.z ]
+    // Static props and brushes both report worldspawn; dynamic props report their own class and model.
+    if ( IsValid( r.hitEnt ) )
+    {
+        t.hitClass <- r.hitEnt.GetClassName()
+        t.hitModel <- string( r.hitEnt.GetModelName() )
+    }
+    return t
+}
+#endif
+
 vector function MTH_Angles( table job )
 {
     return < expect float( job.pitch ), expect float( job.yaw ), expect float( job.roll ) >
@@ -373,25 +408,15 @@ void function MTH_Execute( string raw )
             vector end = < expect float( job.ex ), expect float( job.ey ), expect float( job.ez ) >
             vector mins = < expect float( job.minx ), expect float( job.miny ), expect float( job.minz ) >
             vector maxs = < expect float( job.maxx ), expect float( job.maxy ), expect float( job.maxz ) >
-            TraceResults r = TraceHull( start, end, mins, maxs, null, TRACE_MASK_SOLID_BRUSHONLY, TRACE_COLLISION_GROUP_NONE )
-            table t = {}
-            t.fraction <- r.fraction
-            t.startSolid <- r.startSolid
-            t.end <- [ r.endPos.x, r.endPos.y, r.endPos.z ]
-            t.normal <- [ r.surfaceNormal.x, r.surfaceNormal.y, r.surfaceNormal.z ]
-            answer.data <- t
+            TraceResults r = TraceHull( start, end, mins, maxs, null, MTH_Mask( job ), TRACE_COLLISION_GROUP_NONE )
+            answer.data <- MTH_TraceTable( r )
         }
         else if ( op == "trace" )
         {
             vector start = MTH_Position( job )
             vector end = < expect float( job.ex ), expect float( job.ey ), expect float( job.ez ) >
-            TraceResults r = TraceLine( start, end, null, TRACE_MASK_SOLID_BRUSHONLY, TRACE_COLLISION_GROUP_NONE )
-            table t = {}
-            t.fraction <- r.fraction
-            t.startSolid <- r.startSolid
-            t.end <- [ r.endPos.x, r.endPos.y, r.endPos.z ]
-            t.normal <- [ r.surfaceNormal.x, r.surfaceNormal.y, r.surfaceNormal.z ]
-            answer.data <- t
+            TraceResults r = TraceLine( start, end, null, MTH_Mask( job ), TRACE_COLLISION_GROUP_NONE )
+            answer.data <- MTH_TraceTable( r )
         }
 #endif
         else

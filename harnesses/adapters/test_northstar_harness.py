@@ -142,6 +142,27 @@ class CheckTests(unittest.TestCase):
         self.assertEqual(expectation_errors([event], {'trace_z': [[0, 16, 16.1]]}), [])
         self.assertTrue(expectation_errors([event], {'trace_z': [[0, 0, 1]]}))
 
+    def test_trace_masks_match_probes(self):
+        checks = {'traces': [[0, 0, 64, 0, 0, -64]] * 2, 'trace_masks': ['brushonly', 'solid'],
+                  'hulls': [[0, 0, 64, 0, 0, -64, -16, -16, 0, 16, 16, 72]], 'hull_masks': ['playersolid']}
+        self.assertIs(nh.validate_checks(checks), checks)
+        for bad in ({'traces': [[0] * 6], 'trace_masks': ['solid', 'solid']}, {'traces': [[0] * 6], 'trace_masks': ['props']},
+                    {'trace_masks': ['solid']}, {'hulls': [], 'hull_masks': 'solid'}):
+            with self.subTest(checks=bad), self.assertRaises(ValueError):
+                nh.validate_checks(bad)
+        self.assertIsNone(nh.probe_mask({}, 'trace_masks', 0))
+        self.assertEqual(nh.probe_mask(checks, 'trace_masks', 1), 'solid')
+
+    def test_trace_event_names_mask_and_hit_entity(self):
+        data = {'fraction': 0.25, 'end': [0, 0, 48.0], 'startSolid': False, 'normal': [0, 0, 1],
+                'hitClass': 'prop_dynamic', 'hitModel': 'models/props/pelican_case.mdl'}
+        event = nh.trace_event('TRACE', 1, data, 'solid')
+        self.assertTrue(event.endswith(' mask=solid hit=prop_dynamic model=models/props/pelican_case.mdl'))
+        self.assertEqual(expectation_errors([event], {'trace_z': [[1, 47.9, 48.1]]}), [])
+        plain = nh.trace_event('TRACE', 0, {'fraction': 1, 'end': [0, 0, 0], 'startSolid': False})
+        self.assertNotIn('mask=', plain)
+        self.assertNotIn('hit=', plain)
+
 
 class SessionTests(unittest.TestCase):
     def setUp(self):

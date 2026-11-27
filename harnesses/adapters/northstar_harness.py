@@ -21,8 +21,10 @@ enabledmods.json is restored byte for byte. GPL-2.0-or-later.
 checks.json (every key optional):
   {"settle": 20,                       seconds after the client is ready (pre-match
                                        loadout overlays cover views for ~15 s)
-   "traces": [[x, y, z, ex, ey, ez]],  server TraceLine, brush-only solid mask
+   "traces": [[x, y, z, ex, ey, ez]],  server TraceLine
    "hulls": [[x, y, z, ex, ey, ez, minx, miny, minz, maxx, maxy, maxz]],
+   "trace_masks": ["solid"],           one mask per trace (default brushonly, which
+   "hull_masks": ["playersolid"],      ignores props); see TRACE_MASKS
    "spawn_probe": [[x, y, z]],         floor, pilot and titan clearance per point
    "mode_check": true,                 counts spawn, objective and hazard entities
    "views": [[x, y, z, pitch, yaw]],   client camera captures, or with
@@ -74,8 +76,11 @@ MAP_NAME = re.compile(r'[A-Za-z0-9_]+')
 MODE_NAME = re.compile(r'[A-Za-z0-9_]+')
 PROFILE_NAME = re.compile(r'[A-Za-z0-9_.-]+')
 SCRIPT_ERRORS = ('SCRIPT ERROR', 'COMPILE ERROR', 'SCRIPT COMPILE ERROR')
-CHECK_KEYS = {'settle', 'traces', 'hulls', 'spawn_probe', 'mode_check', 'views', 'thirdperson', 'console', 'expect',
-              'engine_screenshots', 'hide_hud', 'cubemap_weapon'}
+CHECK_KEYS = {'settle', 'traces', 'hulls', 'trace_masks', 'hull_masks', 'spawn_probe', 'mode_check', 'views',
+              'thirdperson', 'console', 'expect', 'engine_screenshots', 'hide_hud', 'cubemap_weapon'}
+# Squirrel masks the server trace job accepts. brushonly ignores static and dynamic props;
+# solid and playersolid collide with them, so a prop collision check traces the same line with both.
+TRACE_MASKS = ('brushonly', 'solid', 'playersolid', 'npcsolid', 'shot', 'water')
 MAX_BODY = 65536
 
 
@@ -231,11 +236,17 @@ def validate_checks(checks):
             raise ValueError(f'{key} rows must be {width} finite numbers')
         return value
 
-    rows('traces', 6)
+    traces = rows('traces', 6)
     rows('spawn_probe', 3)
     rows('views', 5)
-    if any(row[6 + i] > row[9 + i] for row in rows('hulls', 12) for i in range(3)):
+    hulls = rows('hulls', 12)
+    if any(row[6 + i] > row[9 + i] for row in hulls for i in range(3)):
         raise ValueError('hull mins must not exceed maxs')
+    for key, probes in (('trace_masks', traces), ('hull_masks', hulls)):
+        masks = checks.get(key, [])
+        if (not isinstance(masks, list) or (masks and len(masks) != len(probes)) or
+                any(mask not in TRACE_MASKS for mask in masks)):
+            raise ValueError(f'{key} must be empty or name one of {list(TRACE_MASKS)} per probe')
     settle = checks.get('settle', 20)
     if type(settle) not in (int, float) or not math.isfinite(settle) or settle < 0:
         raise ValueError('settle must be a non-negative number of seconds')
@@ -538,10 +549,20 @@ class Session:
         return False
 
 
-def trace_event(kind, index, data):
+def trace_event(kind, index, data, mask=None):
     normal = data.get('normal', [0, 0, 0])
-    return (f'{kind} {index} fraction={data["fraction"]} end={data["end"][2]} solid={data["startSolid"]} '
-            f'normal=<{normal[0]}, {normal[1]}, {normal[2]}> endpos={data["end"]}')
+    event = (f'{kind} {index} fraction={data["fraction"]} end={data["end"][2]} solid={data["startSolid"]} '
+             f'normal=<{normal[0]}, {normal[1]}, {normal[2]}> endpos={data["end"]}')
+    if mask is not None:
+        event += f' mask={mask}'
+    if 'hitClass' in data:
+        event += f' hit={data["hitClass"]} model={data.get("hitModel", "")}'
+    return event
+
+
+def probe_mask(checks, key, index):
+    masks = checks.get(key, [])
+    return masks[index] if masks else None
 
 
 def run_checks(session, checks, mode, report, timeout=300):
@@ -554,15 +575,19 @@ def run_checks(session, checks, mode, report, timeout=300):
         session.run('ui', 'console', command=command)
         time.sleep(0.5)
     for i, t in enumerate(checks.get('traces', [])):
+        mask = probe_mask(checks, 'trace_masks', i)
         data = session.run('server', 'trace', px=float(t[0]), py=float(t[1]), pz=float(t[2]),
-                           ex=float(t[3]), ey=float(t[4]), ez=float(t[5]))['data']
-        events.append(trace_event('TRACE', i, data))
+                           ex=float(t[3]), ey=float(t[4]), ez=float(t[5]),
+                           **({'mask': mask} if mask else {}))['data']
+        events.append(trace_event('TRACE', i, data, mask))
     for i, h in enumerate(checks.get('hulls', [])):
+        mask = probe_mask(checks, 'hull_masks', i)
         data = session.run('server', 'hull', px=float(h[0]), py=float(h[1]), pz=float(h[2]),
                            ex=float(h[3]), ey=float(h[4]), ez=float(h[5]),
                            minx=float(h[6]), miny=float(h[7]), minz=float(h[8]),
-                           maxx=float(h[9]), maxy=float(h[10]), maxz=float(h[11]))['data']
-        events.append(trace_event('HULL', i, data))
+                           maxx=float(h[9]), maxy=float(h[10]), maxz=float(h[11]),
+                           **({'mask': mask} if mask else {}))['data']
+        events.append(trace_event('HULL', i, data, mask))
     if checks.get('spawn_probe'):
         points = [[float(v) for v in p] for p in checks['spawn_probe']]
         results = session.run('server', 'spawn_probe', points=points)['data']

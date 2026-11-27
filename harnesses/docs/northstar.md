@@ -88,7 +88,18 @@ frame fails the run, and a view nearly identical to an earlier one is listed in
 `frame_warnings` (the camera probably didn't move). `frames` holds each view's
 luminance mean, spread and difference hash. TFO and R1Delta use the same review.
 
-Line and hull traces use `TRACE_MASK_SOLID_BRUSHONLY`.
+Line and hull traces use `TRACE_MASK_SOLID_BRUSHONLY` unless `trace_masks` or
+`hull_masks` name one mask per probe: `brushonly`, `solid`, `playersolid`,
+`npcsolid`, `shot` or `water`. Each event ends with the mask (when one was
+given) and the entity it hit, as `hit=<class> model=<model>`.
+
+Static props in Titanfall 2 collide as part of the world: in retail
+`mp_angel_city` (2026-11-21) a ray onto a static crate at (-1382.6, 3598.3)
+stopped on its top at z 191.5 with every mask, brush-only included, against a
+floor at 173, and reported `worldspawn`. So test static-prop collision by
+tracing onto the prop and beside it and comparing heights; the mask changes
+nothing there. Dynamic and physics props report their own class and model and
+are skipped by `brushonly`.
 
 Outputs in `REPORT_DIR`: `report.json` (events, spawn/mode data), `result.json`
 ([contract](../contracts/result.schema.json)), `nslog.txt` and `view<i>.png`.

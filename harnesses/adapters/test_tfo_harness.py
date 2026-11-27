@@ -211,6 +211,14 @@ class TfoHarnessTests(unittest.TestCase):
         self.assertFalse(game_crashed('[ARES] DONE', 0))
         self.assertFalse(game_crashed('', None))
 
+    def test_startup_stack_overflow_is_retried(self):
+        from tfo_harness import retry_launch, STACK_OVERFLOW
+        startup = 'A CRASH HAS BEEN CAPTURED!\nSCRIPT ERROR: [UI] _utility_ui'
+        self.assertTrue(retry_launch(startup, 'mp_x', STACK_OVERFLOW))
+        self.assertFalse(retry_launch(startup, 'mp_x', 1))
+        self.assertTrue(retry_launch('', 'mp_x', 0))
+        self.assertFalse(retry_launch('UICodeCallback_LevelLoadingStarted: mp_x', 'mp_x', STACK_OVERFLOW))
+
     def test_drop_models_and_observation_duration(self):
         with process_directory() as folder:
             root = Path(folder)

@@ -23,8 +23,9 @@ upstream:
   license: GPL-2.0-or-later
 verification:
   status: verified
-  last_checked: "2026-11-12"
+  last_checked: "2026-11-21"
   notes:
+    - "Per-probe trace_masks/hull_masks and hit class/model run in game on 2026-11-21: retail mp_angel_city static crate stops every mask at its top (z 191.5, floor 173, worldspawn); a Lagoon port's pelican cases stop no mask (floor 192.03), showing missing static-prop collision there."
     - "Run in game from ARES on 2026-11-12 (Northstar 1.31.15): mp_glitch tdm and MRVN.TriPortalTest passed; the ray and hull matched earlier native results exactly."
     - "Derived from the MapTest.Harness mod and controllers used in MRVN-Radiant/Titanfall-2-Custom-Maps testing; renamed to ARES.MapHarness."
 inspection:

@@ -46,6 +46,19 @@ def hull_bottom(origin, angles, points):
     return bottom
 
 
+def rest_tilt(angles):
+    """Degrees between world up and the nearest model axis, for Source pitch/yaw/roll.
+
+    A box-like prop resting on a flat floor lies on a face, side or end, so this is
+    near zero; a prop wedged in collision or propped on an edge is not. Yaw is ignored.
+    """
+    pitch, _, roll = map(math.radians, angles)
+    # World Z components of the model's forward, right and up axes.
+    alignment = max(abs(math.sin(pitch)), abs(math.sin(roll) * math.cos(pitch)),
+                    abs(math.cos(roll) * math.cos(pitch)))
+    return math.degrees(math.acos(min(1., alignment)))
+
+
 def support_errors(rows, floors, tolerance=1., max_speed=.1):
     errors = []
     for index, floor in floors.items():
